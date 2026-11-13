@@ -1,6 +1,6 @@
 # Login con GitHub — attivazione una tantum
 
-Stato al **13 novembre 2026**: integrazione preparata e collaudata con API simulate; servizio non ancora attivato. Mancano account Cloudflare, registrazione della GitHub App, installazione e collaudo con account reali. GitHub Pages continua a usare il login esistente. Non modificare `auth-config.json` finché il nuovo servizio non funziona.
+Stato al **13 novembre 2026**, aggiornato dopo la scelta di Cloudflare: piano Workers Free verificato nell’account del proprietario e servizio pubblicato su https://held-dashboard.chiarolanza-francesco.workers.dev. L’interfaccia è raggiungibile; il login non è ancora attivo. Mancano registrazione della GitHub App, installazione sulla sola wiki, secrets e collaudo con account reali. GitHub Pages continua a usare il login esistente. Non modificare `auth-config.json` finché il nuovo servizio non funziona.
 
 ## Cosa cambia per il team
 
@@ -14,7 +14,7 @@ Usare **Workers Free**, senza attivare piani a pagamento: al 13 novembre 2026 in
 
 Il Worker inoltra letture e modifiche della wiki a GitHub: Cloudflare tratta quindi i contenuti durante queste richieste. Non vengono creati un database della wiki o log applicativi dei contenuti. Il cookie contiene una sessione cifrata AES-GCM, Secure, HttpOnly, SameSite=Lax; JavaScript non riceve il token GitHub. La chiave e il client secret vivono esclusivamente nei secrets del Worker. Non attivare log dei corpi delle richieste o delle credenziali.
 
-## 1. Account e primo indirizzo
+## 1. Account e primo indirizzo — completato per Held
 
 Creare un [account Cloudflare](https://dash.cloudflare.com/sign-up), confermare l’email e mantenere Workers Free. Nel repository `held-dashboard`, con Node 22 o successivo:
 
