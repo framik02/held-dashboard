@@ -1,3 +1,5 @@
+export const CATEGORIES = {coordinamento:'Coordinamento',sviluppo:'Sviluppo digitale',contabilita:'Contabilità e budget',finanziamenti:'Bandi e finanziamenti',legale:'Legale e tutele',comunicazione:'Comunicazione',territorio:'Territorio e ricerca',pilota:'Organizzazione del pilota'};
+export const categoryLabel = value => !value?'Da classificare':Object.hasOwn(CATEGORIES,value)?CATEGORIES[value]:'Area: '+value;
 export const STATUSES = {todo:'Da fare', doing:'In corso', blocked:'Bloccata', done:'Completata'};
 export const PRIORITIES = {high:'Alta', medium:'Media', low:'Bassa'};
 export const PHASES = {
@@ -31,7 +33,7 @@ export function serializeMarkdown(original, updates, body) {
 }
 export function toTask(file) {
   const {meta,body}=parseMarkdown(file.raw);
-  if(typeof meta.title!=='string' || !meta.title.trim() || !Object.hasOwn(STATUSES,meta.status) || !Object.hasOwn(PHASES,meta.phase) || !Object.hasOwn(PRIORITIES,meta.priority) || (meta.assignee!==undefined&&typeof meta.assignee!=='string')) throw new Error(`Metadati non validi: ${file.path}`);
+  if(typeof meta.title!=='string' || !meta.title.trim() || !Object.hasOwn(STATUSES,meta.status) || !Object.hasOwn(PHASES,meta.phase) || !Object.hasOwn(PRIORITIES,meta.priority) || (meta.assignee!==undefined&&typeof meta.assignee!=='string') || (meta.category!==undefined&&typeof meta.category!=='string')) throw new Error(`Metadati non validi: ${file.path}`);
   return {...meta,...file,body};
 }
 export function checklist(body) { const rows=body.split('\n'); return rows.flatMap((line,index)=>{const m=line.match(/^\s*- \[([ xX])\] (.*)$/);return m?[{index,checked:m[1]!==' ',label:m[2]}]:[];}); }

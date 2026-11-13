@@ -107,3 +107,6 @@ h1{font-weight:750;letter-spacing:-1px}h2,h3{font-weight:700}
  .welcome p,.login-panel>p{font-size:16px}.sidebar-note p{font-size:14px}.sidebar-note{margin:20px 8px}
  .identity strong{overflow-wrap:anywhere}.identity>div{min-width:0}
 }
+
+/* Aree di lavoro indipendenti da fase e stato. */
+.board-view{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}.board-view label{font-weight:700;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.board-view select{font-size:16px;min-height:48px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink)}.board-view>span{font-size:14px;color:var(--muted)}.board-areas{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}.category-tag{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#e7f1fc;color:#234f7c;border:1px solid #c5d9ee;border-radius:7px;font-size:14px;font-weight:650;text-align:left;padding:8px 10px;margin:0 0 12px;width:100%;min-height:44px}.category-tag:hover{background:#d8e9f9}.filters #filter-category{max-width:260px}@media(max-width:1150px){.board-areas{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:720px){.board-areas{grid-template-columns:1fr}.board-view label,.board-view select{width:100%}.filters #filter-category{flex-basis:100%;max-width:none}}

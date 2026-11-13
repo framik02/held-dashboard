@@ -1,4 +1,4 @@
-import {parseMarkdown,escapeHTML as e,STATUSES,PHASES} from './core.js';
+import {categoryLabel,parseMarkdown,escapeHTML as e,STATUSES,PHASES} from './core.js';
 
 export const GRAPH_TYPES={
  avvio:{label:'Avvio',color:'#315bad'},ascolto:{label:'Ascolto',color:'#1784a3'},
@@ -80,7 +80,7 @@ export function mountGraph(container,graph,{onOpen}={}){
    container.querySelectorAll('[data-category]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.category===category)));
    const node=graph.nodes.find(n=>n.id===selected);
    detail.classList.toggle('has-selection',Boolean(node));
-   detail.innerHTML=node?`<button id="graph-dismiss" class="icon-button" aria-label="Chiudi dettagli del nodo">✕</button><span class="eyebrow">${e(GRAPH_TYPES[node.category].label)}</span><h2>${e(node.title)}</h2><p class="graph-path">${e(node.id)}</p>${node.task?`<p><strong>Stato</strong><br>${e(STATUSES[node.status]||node.status||'Da verificare')}</p><p><strong>Responsabile</strong><br>${e(node.assignee||'Da assegnare')}</p>`:''}<p>${graph.links.filter(l=>l.source===node.id||l.target===node.id).length} collegamenti nella wiki</p><button class="primary" id="graph-open">${node.task?'Apri attività':'Apri pagina'} ↗</button>`: '<p class="graph-empty-hint">Tocca un nodo per leggere il nome e aprire la pagina. I colori indicano il tipo di attività.</p>';
+   detail.innerHTML=node?`<button id="graph-dismiss" class="icon-button" aria-label="Chiudi dettagli del nodo">✕</button><span class="eyebrow">${e(GRAPH_TYPES[node.category].label)}</span><h2>${e(node.title)}</h2><p class="graph-path">${e(node.id)}</p>${node.task?`<p><strong>Area di lavoro</strong><br>${e(categoryLabel(node.meta.category))}</p><p><strong>Stato</strong><br>${e(STATUSES[node.status]||node.status||'Da verificare')}</p><p><strong>Responsabile</strong><br>${e(node.assignee||'Da assegnare')}</p>`:''}<p>${graph.links.filter(l=>l.source===node.id||l.target===node.id).length} collegamenti nella wiki</p><button class="primary" id="graph-open">${node.task?'Apri attività':'Apri pagina'} ↗</button>`: '<p class="graph-empty-hint">Tocca un nodo per leggere il nome e aprire la pagina. I colori indicano il tipo di attività.</p>';
    detail.querySelector('#graph-dismiss')?.addEventListener('click',()=>{selected='';paint();});
    detail.querySelector('#graph-open')?.addEventListener('click',()=>onOpen?.(node));
  }

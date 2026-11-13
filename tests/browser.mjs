@@ -36,12 +36,21 @@ await page.route('**/api/github/**',async route=>{
 try{
   await page.goto('http://127.0.0.1:4173');await page.getByRole('heading',{name:'Facciamo spazio alle idee.'}).waitFor();await page.getByText('1 di 3 attività completate').waitFor();
   await page.getByRole('button',{name:'Nuova attività'}).click();
-  await page.locator('[name=title]').fill('Nuova consegna di prova');await page.locator('[name=assignee]').fill('Persona B');
+  await page.locator('[name=title]').fill('Nuova consegna di prova');await page.locator('[name=assignee]').fill('Persona B');await page.locator('[name=category]').selectOption('finanziamenti');
   await page.locator('[name=body]').fill('## Risultato atteso\n\nConsegna verificata.\n\n- [ ] Preparare il materiale');
   await page.locator('[data-check]').check();await page.locator('[name=comment]').fill('Prima nota ✅');
   await page.getByRole('button',{name:'Salva nella wiki'}).click();await page.locator('#editor').waitFor({state:'hidden'});
-  const created=[...files].find(([p])=>p.startsWith('attivita/h-'));assert.ok(created);assert.match(created[1].raw,/- \[x\] Preparare/);assert.match(created[1].raw,/Prima nota ✅/);
+  const created=[...files].find(([p])=>p.startsWith('attivita/h-'));assert.ok(created);assert.equal(parseMarkdown(created[1].raw).meta.category,'finanziamenti');assert.match(created[1].raw,/- \[x\] Preparare/);assert.match(created[1].raw,/Prima nota ✅/);
   await page.getByRole('button',{name:'Attività',exact:false}).filter({has:page.locator('span')}).first().click();
+  assert.equal(await page.locator('#group-tasks').inputValue(),'category');
+  await page.locator('#filter-category').selectOption('finanziamenti');assert.equal(await page.locator('.task-card').count(),1);
+  await page.locator('#filter-category').selectOption('unclassified');assert.equal(await page.locator('.task-card').count(),3);
+  await page.locator('#filter-category').selectOption('');
+  await page.locator('[data-category-task="attivita/a.md"]').click();await page.locator('[name=category]').selectOption('sviluppo');
+  await page.locator('#save-editor').click();await page.locator('#editor').waitFor({state:'hidden'});
+  assert.equal(parseMarkdown(files.get('attivita/a.md').raw).meta.category,'sviluppo');
+  await page.locator('.column[data-area="sviluppo"] [data-task="attivita/a.md"]').waitFor();
+  await page.locator('#group-tasks').selectOption('status');
   await page.locator('[data-task="attivita/a.md"]').click();await page.locator('[name=comment]').fill('Nota da preservare');
   const original=files.get('attivita/a.md');put('attivita/a.md',original.raw+'\nAggiornamento esterno.\n');
   await page.getByRole('button',{name:'Salva nella wiki'}).click();await page.getByText('Il file è cambiato su GitHub', {exact:false}).waitFor();
@@ -50,7 +59,7 @@ try{
   await page.locator('[data-task="attivita/a.md"]').click();await page.locator('[name=comment]').fill('Seconda nota');
   await page.getByRole('button',{name:'Salva nella wiki'}).click();await page.locator('#editor').waitFor({state:'hidden'});assert.match(files.get('attivita/a.md').raw,/Aggiornamento esterno/);assert.match(files.get('attivita/a.md').raw,/Seconda nota/);
   await page.locator('[data-status-task="attivita/a.md"]').selectOption('done');await page.waitForFunction(()=>document.querySelector('.column[data-status="done"] [data-task="attivita/a.md"]'));
-  assert.equal(parseMarkdown(files.get('attivita/a.md').raw).meta.status,'done');
+  assert.equal(parseMarkdown(files.get('attivita/a.md').raw).meta.status,'done');assert.equal(parseMarkdown(files.get('attivita/a.md').raw).meta.category,'sviluppo');
   await page.locator('[data-view=wiki]').click();await page.getByRole('heading',{name:'Stato di prova'}).waitFor();await page.getByRole('button',{name:'Modifica pagina',exact:true}).click();
   await page.locator('[name=raw]').fill(files.get('stato.md').raw+'\nNuovo risultato condiviso.\n');failNext=true;
   await page.getByRole('button',{name:'Salva nella wiki'}).click();await page.getByText('Rete non disponibile',{exact:true}).waitFor();assert.match(await page.locator('[name=raw]').inputValue(),/Nuovo risultato/);
@@ -102,7 +111,8 @@ try{
   await page.waitForTimeout(250);assert.ok((await page.locator('#sidebar').boundingBox()).x>=0);await page.screenshot({path:'../held-menu-mobile-test.png'});
   await page.keyboard.press('Escape');assert.equal(await page.locator('#menu-toggle').getAttribute('aria-expanded'),'false');
   await page.getByRole('button',{name:'Apri menu',exact:true}).click();
-  await page.locator('[data-view=board]').click();await page.screenshot({path:'../held-mobile-test.png',fullPage:true});
+  await page.locator('[data-view=board]').click();await page.waitForTimeout(300);await page.screenshot({path:'../held-mobile-test.png',fullPage:true});
+  await page.locator('#group-tasks').selectOption('category');await page.screenshot({path:'../held-areas-mobile-test.png',fullPage:true});
   // Dense map and mobile controls, with synthetic pages only.
   for(let i=0;i<48;i++)put('docs/page-'+i+'.md','# Pagina di esempio '+i+'\n\n[Stato](../stato.md)');
   await page.getByRole('button',{name:'Aggiorna da GitHub'}).click();
