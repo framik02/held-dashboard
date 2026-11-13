@@ -2,7 +2,25 @@ import {buildGraph,mountGraph} from './graph.js';
 import {STATUSES,PRIORITIES,PHASES,escapeHTML as e,parseMarkdown,serializeMarkdown,toTask,checklist,toggleCheck,addComment,encode64,decode64,markdownHTML,fileURL} from './core.js';
 const $=s=>document.querySelector(s);
 const state={repo:'framik02/held-wiki',token:'',oauth:false,csrf:'',local:false,nonce:'',user:null,tasks:[],files:[],cache:new Map(),view:'overview',filter:{search:'',assignee:'',phase:'',priority:''},loading:false,saving:false,editor:null,wikiPath:'stato.md',wikiQuery:'',lastHead:'',poll:null,session:0};
-let toastTimer;
+let toastTimer,disposeGraph=null;
+const mobileMenu=matchMedia('(max-width:720px)');
+let menuOpen=!mobileMenu.matches;
+function setMenu(open,focus=false){
+  menuOpen=open;$('#app').classList.toggle('menu-open',open);$('#app').classList.toggle('menu-closed',!open);
+  $('#sidebar').inert=!open;$('#menu-toggle').setAttribute('aria-expanded',String(open));$('#menu-toggle').setAttribute('aria-label',open?'Chiudi menu':'Apri menu');
+  $('#menu-backdrop').hidden=!(open&&mobileMenu.matches);document.body.classList.toggle('menu-lock',open&&mobileMenu.matches);
+  $('.workspace').inert=open&&mobileMenu.matches;
+  if(focus)(open&&mobileMenu.matches?$('#menu-close'):$('#menu-toggle')).focus();
+}
+$('#menu-toggle').onclick=()=>setMenu(!menuOpen,true);
+$('#menu-close').onclick=$('#menu-backdrop').onclick=()=>setMenu(false,true);
+mobileMenu.addEventListener('change',()=>setMenu(!mobileMenu.matches));
+document.addEventListener('keydown',event=>{
+ if(!menuOpen||!mobileMenu.matches)return;
+ if(event.key==='Escape'){event.preventDefault();setMenu(false,true);}
+ if(event.key==='Tab'){const controls=[...$('#sidebar').querySelectorAll('a,button')].filter(el=>el.getClientRects().length);const first=controls[0],last=controls.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}
+});
+setMenu(menuOpen);
 function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').hidden=true,5000);}
 const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Rome'});
 const initials=s=>(s||'?').slice(0,2).toUpperCase();
@@ -84,7 +102,7 @@ async function connect(local=false,oauth=false){
   }catch(err){state.user=null;state.token='';$('#login-error').textContent=errorText(err);}
   finally{$('#login-form button').disabled=false;$('#local-login').disabled=false;}
 }
-function navigate(view){state.view=view;render();window.scrollTo({top:0,behavior:'instant'});}
+function navigate(view){if(mobileMenu.matches)setMenu(false,true);state.view=view;render();window.scrollTo({top:0,behavior:'instant'});}
 function filteredTasks(){const f=state.filter;return sorted(state.tasks.filter(t=>(!f.search||`${t.title} ${t.body} ${t.assignee}`.toLowerCase().includes(f.search.toLowerCase()))&&(!f.assignee||t.assignee===f.assignee)&&(!f.phase||t.phase===f.phase)&&(!f.priority||t.priority===f.priority)));}
 function phaseStats(key){const all=state.tasks.filter(t=>t.phase===key);const done=all.filter(t=>t.status==='done').length;return {total:all.length,done,percent:all.length?Math.round(done/all.length*100):0};}
 function taskRow(t){return `<div class="task-row"><button class="check-button ${t.status==='done'?'done':''}" data-toggle="${e(t.path)}" aria-label="${t.status==='done'?'Riapri':'Completa'}: ${e(t.title)}">${t.status==='done'?'✓':''}</button><button class="row-open" data-task="${e(t.path)}"><strong>${e(t.title)}</strong><small>${e(ownerLabel(t))} · ${e(PHASES[t.phase].name)}</small></button><span class="tag ${t.priority}">${PRIORITIES[t.priority]}</span></div>`;}
@@ -107,6 +125,7 @@ let wikiRequest=0;
 async function loadWiki(){const request=++wikiRequest;try{const file=await readFile(state.wikiPath);if(request!==wikiRequest||state.view!=='wiki')return;const p=parseMarkdown(file.raw);$('#wiki-article').innerHTML=`<div class="article-toolbar"><small>${e(file.path)}</small><button class="secondary" id="edit-doc">Modifica pagina</button></div><div class="markdown">${markdownHTML(p.body,file.path,state.repo)}</div>`;$('#edit-doc').onclick=()=>openDoc(file);}catch(err){if($('#wiki-article'))$('#wiki-article').innerHTML=`<div class="empty">${e(errorText(err))}</div>`;}}
 function render(){
   if(!state.user)return;
+  disposeGraph?.();disposeGraph=null;
   const titles={graph:['LA MAPPA DEL PROGETTO','Le idee, collegate.','Esplora pagine, attività e relazioni nella wiki condivisa.'],overview:['IL NOSTRO PROGETTO','Facciamo spazio alle idee.','La direzione è comune. Il prossimo passo è concreto.'],board:['DAL PIANO ALL’AZIONE','Il lavoro, un passo alla volta.','Priorità chiare, responsabilità condivise e nessun pezzo perso.'],phases:['LA STRADA DAVANTI','Una direzione, cinque fasi.','Dall’ascolto al primo pilota. Con il tempo necessario per farlo bene.'],wiki:['LA NOSTRA CONOSCENZA','Quello che sappiamo, insieme.','Le stesse pagine che leggete e aggiornate con i vostri assistenti AI.']};
   const [eyebrow,title,description]=titles[state.view];$('#page-eyebrow').textContent=eyebrow;$('#page-title').textContent=title;$('#page-description').textContent=description;
   $('#breadcrumb').textContent='Held / '+({overview:'Panoramica',board:'Attività',phases:'Fasi di lavoro',wiki:'Wiki',graph:'Grafo'}[state.view]);$('#task-count').textContent=state.tasks.filter(t=>t.status!=='done').length;
@@ -166,8 +185,8 @@ function closeEditor(){if(state.saving)return;if(editorSnapshot()!==state.editor
 $('#login-form').onsubmit=event=>{event.preventDefault();connect(false);};$('#local-login').onclick=()=>connect(true);
 $('#refresh').onclick=()=>refresh();$('#new-task').onclick=newTask;$('#close-editor').onclick=closeEditor;$('#editor-form').onsubmit=saveEditor;
 $('#editor').addEventListener('cancel',event=>{event.preventDefault();closeEditor();});
-$('#logout').onclick=async()=>{if(state.oauth){try{const response=await fetch('/auth/logout',{method:'POST',headers:{'X-Held-CSRF':state.csrf}});if(!response.ok&&response.status!==401)throw new Error();}catch{toast('Uscita non confermata: controlla la connessione e riprova.');return;}}state.oauth=false;state.csrf='';clearInterval(state.poll);state.session++;state.token='';state.user=null;state.cache.clear();state.tasks=[];state.files=[];state.lastHead='';$('#content').innerHTML='';$('#app').hidden=true;$('#login').hidden=false;};
-const mobileLogout=document.createElement('button');mobileLogout.className='icon-button mobile-logout';mobileLogout.textContent='↪';mobileLogout.setAttribute('aria-label','Esci dall’account');mobileLogout.onclick=()=>$('#logout').click();$('.topbar>div').append(mobileLogout);
+$('#logout').onclick=async()=>{if(state.oauth){try{const response=await fetch('/auth/logout',{method:'POST',headers:{'X-Held-CSRF':state.csrf}});if(!response.ok&&response.status!==401)throw new Error();}catch{toast('Uscita non confermata: controlla la connessione e riprova.');return;}}disposeGraph?.();disposeGraph=null;setMenu(false);state.oauth=false;state.csrf='';clearInterval(state.poll);state.session++;state.token='';state.user=null;state.cache.clear();state.tasks=[];state.files=[];state.lastHead='';$('#content').innerHTML='';$('#app').hidden=true;$('#login').hidden=false;};
+const mobileLogout=document.createElement('button');mobileLogout.className='icon-button mobile-logout';mobileLogout.textContent='↪';mobileLogout.setAttribute('aria-label','Esci dall’account');mobileLogout.onclick=()=>$('#logout').click();$('.topbar-actions').append(mobileLogout);
 $('#download-draft').onclick=()=>{const blob=new Blob([buildDraft()],{type:'text/markdown;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=state.editor.path.split('/').pop();a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 document.addEventListener('click',event=>{
   const target=event.target.closest('button');if(!target)return;
@@ -195,7 +214,7 @@ async function loadGraph(){
     const loading=$('#graph-container .loading');if(loading)loading.textContent='Collego le pagine… '+Math.min(i+6,pages.length)+'/'+pages.length;
   }
   if(state.view!=='graph'||request!==graphRequest||session!==state.session)return;
-  const host=$('#graph-container');mountGraph(host,buildGraph(files),{onOpen:node=>{if(node.task)openTask(node.id);else{state.wikiPath=node.id;navigate('wiki');}}});
+  const host=$('#graph-container');disposeGraph=mountGraph(host,buildGraph(files),{onOpen:node=>{if(node.task)openTask(node.id);else{state.wikiPath=node.id;navigate('wiki');}}});
   if(errors.length){const warning=document.createElement('p');warning.className='graph-error';warning.textContent='Grafo parziale: impossibile leggere '+errors.join(', ')+'. Premi aggiorna per riprovare.';host.prepend(warning);}
 }
 
