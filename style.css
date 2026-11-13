@@ -34,3 +34,76 @@ body{background:linear-gradient(180deg,#f8fbff,#f2f7fc);font-weight:450}h1{font-
 .graph-fullscreen-shell .graph-hint{position:absolute;bottom:0;left:0;right:0;background:#f5f9fddd;border:0;text-align:center}.graph-fullscreen-shell .graph-detail{max-height:100%}
 
 @media(min-width:721px){.graph-fullscreen-shell .graph-layout{grid-template-columns:minmax(0,1fr) 245px;align-items:start}}
+
+/* Gerarchia leggibile: contenuti a 16px, informazioni secondarie a 14px. */
+:root{--muted:#465e77;--ink:#172f49}
+body{font-size:16px;line-height:1.65}
+h1{font-weight:750;letter-spacing:-1px}h2,h3{font-weight:700}
+.page-head h1{font-size:clamp(32px,3.2vw,44px)}
+.page-head p{font-size:16px;line-height:1.65}
+.eyebrow{font-size:12px;letter-spacing:1.2px;font-weight:750}
+.primary,.secondary{font-size:16px;font-weight:700;min-height:48px}
+.primary{box-shadow:0 3px 8px #173f7315}
+.sidebar nav button{font-size:16px;font-weight:600;line-height:1.4;min-height:50px}
+.sidebar nav button.active{font-weight:800;background:#cddff2;color:#163f70;box-shadow:inset 3px 0 #245b93}
+.sidebar nav b,.sidebar .workspace-label{font-size:12px}
+.sidebar-note strong,.identity strong{font-size:14px}
+.sidebar-note p,.identity small{font-size:13px}
+.topbar,.topbar #breadcrumb{font-size:14px}#sync-status{font-size:13px}
+.stat .label{font-size:16px;font-weight:650;line-height:1.4}
+.stat strong{font-size:42px;font-weight:750;margin:14px 0 10px}
+.stat small{font-size:14px;line-height:1.5}
+.panel-head{flex-wrap:wrap}.panel-head h2,.section-title h2{font-size:21px;font-weight:750;line-height:1.4}
+.text-button{font-size:14px;font-weight:650;min-height:44px}
+.task-row strong{font-size:17px;font-weight:750;line-height:1.5}
+.task-row small{font-size:14px;line-height:1.5;margin-top:7px}
+.check-button{min-width:26px;width:26px;height:26px;flex-shrink:0}
+.tag{font-size:13px;font-weight:700;padding:5px 9px;border:1px solid transparent;white-space:normal}
+.tag.high{background:#204f83;color:#fff;border-color:#204f83}
+.tag.medium{background:#dfedfa;color:#284d74;border-color:#b5d0eb}
+.tag.low{background:#edf3f8;color:#465e77;border-color:#d2deea}
+.tag.blocked{background:#fbe6e2;color:#833b32;border-color:#e7b5ac}
+.tag.proposal{font-size:12px;color:#465e77;background:#edf3f8}
+.phase-mini .row{font-size:16px;font-weight:600;align-items:baseline;flex-wrap:wrap}
+.phase-mini small,.phase-card small{font-size:14px}
+.bar{height:7px}.note-strip{font-size:15px;line-height:1.65}
+.team-card strong{font-size:17px;font-weight:750}.team-card small{font-size:14px}
+.column-head{font-size:17px;font-weight:750;line-height:1.4}.column-head b{font-size:14px;font-weight:700}
+.task-card .card-open{font-size:18px;font-weight:750;line-height:1.5;padding:14px 0}
+.task-card .meta{font-size:14px}.task-card .avatar{min-width:30px;height:30px;font-size:11px}
+.task-card select{font-size:15px;padding:10px;min-height:44px}
+.owner-trigger{font-size:15px;font-weight:600;line-height:1.5;min-height:44px}
+.owner-trigger span:last-child{font-size:14px;flex-shrink:0}.owner-trigger span:first-child{overflow-wrap:anywhere}
+.owner-options button{font-size:15px;min-height:44px}
+.help,.empty,.loading,.error,.warning-banner{font-size:15px;line-height:1.6}
+.phase-card h2{font-size:22px}.phase-card p{font-size:16px;line-height:1.6}
+.wiki-list button{font-size:16px;line-height:1.5}.wiki-list small{font-size:13px;margin-top:3px}
+.article-toolbar small{font-size:14px}.article-toolbar{flex-wrap:wrap}
+.markdown{font-size:17px;line-height:1.8}.markdown h1{font-size:32px}.markdown h2{font-size:25px}.markdown h3{font-size:21px}
+.markdown strong{font-weight:800;color:var(--ink)}.markdown code,.markdown pre,.md-table-row{font-size:14px}
+.dialog-head h2{font-size:24px;line-height:1.4}#editor-fields label{font-size:15px;font-weight:600}
+#editor-fields input,#editor-fields select,#editor-fields textarea{font-size:16px;line-height:1.6}
+.dialog-footer a,.dialog-footer .primary{font-size:15px}.comments-view h3{font-size:16px}
+.graph-viewbar>span,.graph-toolbar>span{font-size:14px;font-weight:600}
+.graph-options>summary,.graph-label-toggle,.graph-node-list summary{font-size:16px}
+.graph-legend button{font-size:14px;min-height:44px;font-weight:600}
+.graph-node-list button{font-size:16px;line-height:1.5}
+.graph-detail h2{font-size:22px;font-weight:750}.graph-detail p,.graph-empty-hint{font-size:16px}
+.graph-detail small{font-size:14px}.graph-detail .primary{font-size:16px}
+.graph-hint{font-size:13px;line-height:1.5}.node-label{font-weight:750}
+.login-panel>p,.login-panel label,.access-help{font-size:16px;line-height:1.65}.privacy{font-size:13px}
+.workspace>footer{font-size:12px}#toast{font-size:15px;line-height:1.5}
+@media(max-width:720px){
+ .page-head h1{font-size:32px}.page-head p{font-size:16px;max-width:none}
+ .page-head .primary,.article-toolbar .secondary{font-size:16px;padding:11px 16px}
+ .eyebrow{font-size:12px}.stat{padding:16px 14px}.stat .label{font-size:15px}.stat strong{font-size:38px}.stat small{font-size:14px}
+ .task-row{flex-wrap:wrap;gap:10px}.task-row .row-open{flex-basis:calc(100% - 40px)}.task-row>.tag{margin-left:36px}
+ .filters select{flex-basis:calc(50% - 7px)}.task-card select{font-size:16px}
+ .phase-card h2{font-size:21px}.phase-card p{font-size:16px}
+ .markdown{font-size:17px}.markdown h1{font-size:29px}.md-table-row span{min-width:120px}
+ .graph-detail h2{font-size:21px}.graph-detail p{font-size:16px}.graph-hint{font-size:12px}
+ .graph-fullscreen-shell .graph-detail.has-selection{max-height:52%}
+ .dialog-head h2{font-size:22px}.dialog-footer .primary{font-size:16px}.dialog-footer a{font-size:14px}
+ .welcome p,.login-panel>p{font-size:16px}.sidebar-note p{font-size:14px}.sidebar-note{margin:20px 8px}
+ .identity strong{overflow-wrap:anywhere}.identity>div{min-width:0}
+}
