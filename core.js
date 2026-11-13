@@ -11,7 +11,7 @@ export const escapeHTML = s => String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&am
 export function parseMarkdown(raw) {
   raw=raw.replace(/^\uFEFF/,'').replace(/\r\n/g,'\n');
   const match=raw.match(/^---\n([\s\S]*?)\n---(?:\n|$)/);
-  const meta={};
+  const meta=Object.create(null);
   if(match) for(const line of match[1].split('\n')) {
     const m=line.match(/^([a-z_]+):\s*(.*)$/); if(!m)continue;
     let val=m[2].trim();
@@ -31,8 +31,8 @@ export function serializeMarkdown(original, updates, body) {
 }
 export function toTask(file) {
   const {meta,body}=parseMarkdown(file.raw);
-  if(!meta.title || !Object.hasOwn(STATUSES,meta.status) || !Object.hasOwn(PHASES,meta.phase) || !Object.hasOwn(PRIORITIES,meta.priority)) throw new Error(`Metadati non validi: ${file.path}`);
-  return {...file,...meta,body};
+  if(typeof meta.title!=='string' || !meta.title.trim() || !Object.hasOwn(STATUSES,meta.status) || !Object.hasOwn(PHASES,meta.phase) || !Object.hasOwn(PRIORITIES,meta.priority) || (meta.assignee!==undefined&&typeof meta.assignee!=='string')) throw new Error(`Metadati non validi: ${file.path}`);
+  return {...meta,...file,body};
 }
 export function checklist(body) { const rows=body.split('\n'); return rows.flatMap((line,index)=>{const m=line.match(/^\s*- \[([ xX])\] (.*)$/);return m?[{index,checked:m[1]!==' ',label:m[2]}]:[];}); }
 export function toggleCheck(body,index,checked) {
