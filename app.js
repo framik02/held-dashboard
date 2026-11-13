@@ -203,7 +203,7 @@ async function initGitHubLogin(){
   const button=$('#github-login'),status=$('#oauth-status');
   try{
     const response=await fetch('./auth-config.json',{cache:'no-store'});if(!response.ok)return;const config=await response.json();
-    if(config.github_login_url){const target=new URL(config.github_login_url);if(target.protocol!=='https:'||target.username||target.password)throw new Error();button.hidden=false;button.onclick=()=>location.assign(target.href);}
+    if(config.github_login_url){const target=new URL(config.github_login_url);if(target.protocol!=='https:'||target.username||target.password)throw new Error();button.hidden=false;button.onclick=()=>location.assign(target.href);$('#login-form').hidden=true;$('.access-help').hidden=true;status.textContent='Entra con il tuo account GitHub. Non serve un token personale.';}
     if(!config.managed_auth)return;
     const sessionResponse=await fetch('/auth/session',{cache:'no-store'});const session=await sessionResponse.json();
     if(!sessionResponse.ok){status.textContent=session.message||'Login GitHub in configurazione.';return;}

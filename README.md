@@ -4,7 +4,7 @@ Interfaccia responsive per coordinare un progetto con attività, fasi e wiki Mar
 
 ## Accesso con GitHub senza token manuali
 
-Login GitHub pubblicato il **13 novembre 2026** su [Cloudflare Workers Free](https://held-dashboard.chiarolanza-francesco.workers.dev); primo ingresso con account reale ancora da confermare: [guida completa](SETUP-LOGIN.md). Usa una GitHub App e Cloudflare Workers Free, con sessione cifrata fino a otto ore. Registrazione dell’app e configurazione dei secrets completate; resta il collaudo reale dell’utente. GitHub Pages mantiene nel frattempo il login precedente.
+Accesso dal telefono e visualizzazione delle attività reali confermati dall’utente il **13 novembre 2026**. [Apri Held](https://held-dashboard.chiarolanza-francesco.workers.dev/) e premi **Accedi con GitHub**. Nessun token da generare o incollare; sessione cifrata fino a otto ore. Anche il vecchio link GitHub Pages offre il pulsante verso il nuovo accesso. [Configurazione e manutenzione](SETUP-LOGIN.md).
 
 ## Aprire sul computer
 
@@ -21,11 +21,9 @@ Aprire http://127.0.0.1:4173. Non occorre installare dipendenze per usare la das
 
 ## Aprire dal telefono o da un altro computer
 
-Sito: https://framik02.github.io/held-dashboard/
+Sito: https://held-dashboard.chiarolanza-francesco.workers.dev/
 
-Inserire il repository e il proprio token GitHub. Per il proprietario: token fine-grained limitato alla wiki, permesso **Contents: Read and write**. Per i collaboratori di repository personali altrui, l’attuale limite GitHub può richiedere un token classic con scope **repo**: preferire una scadenza breve, considerato l’accesso ampio. La modalità locale con GitHub CLI evita l’inserimento manuale. Non condividere token: ogni persona usa il suo account, che deve avere accesso alla wiki.
-
-Il token è conservato solo nella memoria della scheda, mai in localStorage, cookie, repository o URL. Ricaricando/chiudendo la pagina occorre riconnettersi. I contenuti non sono accessibili senza autorizzazione anche se l’interfaccia è pubblica. Non c’è un server GitHub Pages che conservi password: il browser comunica direttamente con l’API GitHub.
+Ogni persona entra con il proprio account GitHub e deve già avere accesso in scrittura alla wiki. Il servizio Cloudflare Workers Free usa una GitHub App: i token restano in una sessione cifrata, non accessibile al JavaScript. Alla scadenza si accede di nuovo con il pulsante. Il codice e i documenti restano su GitHub.
 
 ## Come si sincronizza
 
