@@ -85,7 +85,9 @@ Sostituire il segnaposto con l’indirizzo effettivo, fare commit e push. GitHub
 ## Controlli per chi modifica il codice
 
 ```sh
+npm ci
 node --test tests/*.test.mjs
+npm run test:worker
 node scripts/build-auth.mjs
 npx wrangler@4 deploy --dry-run
 ```
@@ -95,3 +97,7 @@ npx wrangler@4 deploy --dry-run
 Il proxy consente solo la wiki configurata, letture del ramo main e scritture Markdown; esclude repository esterni e percorsi nascosti. OAuth usa state e PKCE. Le scritture richiedono sessione valida, origine corretta e CSRF. Gli errori GitHub e i conflitti vengono preservati; non usare un token del proprietario condiviso come scorciatoia.
 
 Fonti: [token utente GitHub App](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-user-access-token-for-a-github-app), [revoca del singolo token](https://docs.github.com/en/rest/apps/oauth-applications#delete-an-app-token), [Workers con asset statici](https://developers.cloudflare.com/workers/static-assets/).
+
+## Compatibilità del login — correzione del 13 novembre 2026
+
+Il runtime Cloudflare non accetta `redirect: "error"`: usare `manual` e rifiutare le risposte 3xx. Il test `npm run test:worker` esercita il Worker effettivo con servizi GitHub fittizi, senza chiamate alla rete GitHub, ed è obbligatorio per le modifiche al login. La dipendenza di sviluppo Miniflare è fissata alla versione usata dal Wrangler del collaudo; non è inclusa nel codice pubblicato. Il 13 novembre 2026 il test ha riprodotto il 503 del callback prima della correzione ed è passato dopo. [Riferimento](https://developers.cloudflare.com/workers/runtime-apis/request/).

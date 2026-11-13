@@ -7,3 +7,5 @@ La fonte dati è il repository selezionato dall’utente. Mantenere la scrittura
 Verificare parser, salvataggi, conflitti, errori API, interfaccia a 390 e 1440 px. Node senza dipendenze runtime. Il server locale resta su 127.0.0.1, con controllo Host, Origin e nonce; non trasformarlo in proxy generico. Nessun iframe o script di terze parti.
 
 La wiki e il codice hanno repository separati. Gli agenti che lavorano sui contenuti devono leggere AGENTS.md della wiki. Non dedurre che un’attività spuntata autorizzi invii esterni o spese.
+
+Per modifiche all’autenticazione eseguire anche npm run test:worker dopo npm ci: il test usa il runtime workerd con un servizio GitHub fittizio. I soli mock Node non provano la compatibilità Cloudflare. Non usare redirect: error nelle chiamate Workers; mantenere redirect manual e il rifiuto esplicito dei 3xx per evitare inoltri delle credenziali.
