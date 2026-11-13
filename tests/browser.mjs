@@ -2,6 +2,7 @@ import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 import {encode64,serializeMarkdown,parseMarkdown} from '../core.js';
 
+const oauth=process.env.TEST_AUTH==='1';let loggedOut=false;
 const files=new Map();let revision=1,failNext=false;
 function put(path,raw){files.set(path,{raw,sha:`sha-${revision++}`});}
 function task(title,phase,status='todo'){return serializeMarkdown('',{id:title,title,type:'overview',updated:'2026-11-13',status,priority:'high',phase,assignee:'Persona A',assignment:'proposed',due:'',schedule:'proposed',sources:[]},'## Risultato atteso\n\nUna consegna di prova.\n\n## Sottoattività\n\n- [ ] Primo passo\n\n## Commenti\n');}
@@ -14,9 +15,12 @@ const browser=await chromium.launch({headless:true,executablePath:process.env.CH
 const context=await browser.newContext({viewport:{width:1440,height:1000}});
 const page=await context.newPage();const errors=[];page.on('pageerror',err=>errors.push(err.message));
 page.on('dialog',dialog=>dialog.accept());
-await page.route('**/api/config',route=>route.fulfill({json:{local:true,nonce:'test',repo:'team/wiki'}}));
+await page.route('**/api/config',route=>route.fulfill({json:{local:!oauth,nonce:'test',repo:'team/wiki'}}));
+await page.route('**/auth-config.json',route=>route.fulfill({json:{managed_auth:oauth,github_login_url:null}}));
+await page.route('**/auth/session',route=>route.fulfill({json:{enabled:true,authenticated:!loggedOut,repo:'team/wiki',csrf:'test-csrf',user:{login:'persona-test'}}}));
+await page.route('**/auth/logout',route=>{assert.equal(route.request().headers()['x-held-csrf'],'test-csrf');assert.equal(route.request().method(),'POST');loggedOut=true;return route.fulfill({json:{ok:true}});});
 await page.route('**/api/github/**',async route=>{
-  const request=route.request(),url=new URL(request.url()),endpoint=url.pathname.replace('/api/github','');
+  const request=route.request();if(oauth){assert.equal(request.headers()['x-held-csrf'],'test-csrf');assert.equal(request.headers().authorization,undefined);}const url=new URL(request.url()),endpoint=url.pathname.replace('/api/github','');
   if(endpoint==='/user')return route.fulfill({json:{login:'persona-test'}});
   if(endpoint==='/repos/team/wiki')return route.fulfill({json:{private:true}});
   if(endpoint==='/repos/team/wiki/git/trees/main')return route.fulfill({json:{sha:`tree-${revision}`,tree:[...files].map(([path,file])=>({path,sha:file.sha,type:'blob'}))}});
@@ -80,5 +84,12 @@ try{
   for(const view of ['overview','board','phases','wiki','graph']){await page.locator(`[data-view=${view}]`).click();await page.waitForTimeout(120);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Overflow orizzontale in ${view}`);}
   await page.locator('#wiki-graph').waitFor();await page.screenshot({path:'../held-graph-mobile-test.png',fullPage:true});
   await page.locator('[data-view=board]').click();await page.screenshot({path:'../held-mobile-test.png',fullPage:true});
+  if(oauth){
+    await page.reload();await page.locator('#app').waitFor({state:'visible'});assert.equal(await page.locator('#login-form').isVisible(),false);
+    await page.getByRole('button',{name:'Esci dall’account',exact:true}).click();await page.locator('#login').waitFor({state:'visible'});assert.ok(loggedOut);await page.locator('#github-login').waitFor({state:'visible'});
+    await page.reload();await page.locator('#github-login').waitFor({state:'visible'});assert.equal(await page.locator('#app').isVisible(),false);assert.equal(await page.locator('#login-form').isVisible(),false);
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Overflow login mobile');
+    console.log('OAuth browser OK: ripristino sessione, nessun Bearer nel browser, salvataggi con CSRF, uscita e login mobile.');
+  }
   assert.deepEqual(errors,[]);console.log('Browser OK: creazione, sottoattività, commenti, conflitto, recupero errore, stati, modifica wiki, aggiornamento AI, filtri, assegnazione e rimozione responsabile, grafo/filtri/zoom/apertura nodi, font Manrope, desktop e cinque viste mobile.');
 }finally{await browser.close();}

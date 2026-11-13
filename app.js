@@ -1,7 +1,7 @@
 import {buildGraph,mountGraph} from './graph.js';
 import {STATUSES,PRIORITIES,PHASES,escapeHTML as e,parseMarkdown,serializeMarkdown,toTask,checklist,toggleCheck,addComment,encode64,decode64,markdownHTML,fileURL} from './core.js';
 const $=s=>document.querySelector(s);
-const state={repo:'framik02/held-wiki',token:'',local:false,nonce:'',user:null,tasks:[],files:[],cache:new Map(),view:'overview',filter:{search:'',assignee:'',phase:'',priority:''},loading:false,saving:false,editor:null,wikiPath:'stato.md',wikiQuery:'',lastHead:'',poll:null,session:0};
+const state={repo:'framik02/held-wiki',token:'',oauth:false,csrf:'',local:false,nonce:'',user:null,tasks:[],files:[],cache:new Map(),view:'overview',filter:{search:'',assignee:'',phase:'',priority:''},loading:false,saving:false,editor:null,wikiPath:'stato.md',wikiQuery:'',lastHead:'',poll:null,session:0};
 let toastTimer;
 function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').hidden=true,5000);}
 const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Rome'});
@@ -9,12 +9,12 @@ const initials=s=>(s||'?').slice(0,2).toUpperCase();
 const shortName=t=>t.assignee||'Da assegnare';
 const ownerLabel=t=>shortName(t)+(t.assignment==='proposed'&&t.assignee?' · proposto':'');
 const sorted=tasks=>[...tasks].sort((a,b)=>({high:0,medium:1,low:2}[a.priority]-{high:0,medium:1,low:2}[b.priority])||String(a.due||'9999').localeCompare(String(b.due||'9999'))||a.title.localeCompare(b.title));
-function errorText(err){if(err.status===401)return 'Accesso scaduto o token non valido. Esci e ricollega GitHub.';if(err.status===403)return 'GitHub non autorizza questa operazione. Controlla permessi del token, accesso al repository o limite API.';if(err.status===404)return 'Repository o file non trovato. Per una wiki privata verifica che il token abbia accesso.';if(err.status===409||err.status===422)return 'Il file è cambiato su GitHub o la modifica non è applicabile. La tua bozza è conservata qui: scaricala, chiudi e riapri la scheda aggiornata prima di integrare le modifiche.';return err.message||'Connessione non disponibile. Riprova: nessuna modifica è stata confermata.';}
+function errorText(err){if(state.oauth&&err.status===401)return 'Sessione scaduta. Conserva la bozza, esci e premi Accedi con GitHub.';if(state.oauth&&err.status===403)return 'Operazione non autorizzata. Verifica l’accesso alla wiki o riprova più tardi.';if(err.status===401)return 'Accesso scaduto o token non valido. Esci e ricollega GitHub.';if(err.status===403)return 'GitHub non autorizza questa operazione. Controlla permessi del token, accesso al repository o limite API.';if(err.status===404)return 'Repository o file non trovato. Per una wiki privata verifica che il token abbia accesso.';if(err.status===409||err.status===422)return 'Il file è cambiato su GitHub o la modifica non è applicabile. La tua bozza è conservata qui: scaricala, chiudi e riapri la scheda aggiornata prima di integrare le modifiche.';return err.message||'Connessione non disponibile. Riprova: nessuna modifica è stata confermata.';}
 async function api(path,method='GET',body){
   const headers={'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};
-  if(state.local)headers['X-Held-Local']=state.nonce;else headers.Authorization=`Bearer ${state.token}`;
+  if(state.oauth)headers['X-Held-CSRF']=state.csrf;else if(state.local)headers['X-Held-Local']=state.nonce;else headers.Authorization=`Bearer ${state.token}`;
   if(body)headers['Content-Type']='application/json';
-  const response=await fetch(state.local?`/api/github${path}`:`https://api.github.com${path}`,{method,headers,body:body?JSON.stringify(body):undefined,cache:'no-store',signal:AbortSignal.timeout(25000)});
+  const response=await fetch(state.local||state.oauth?`/api/github${path}`:`https://api.github.com${path}`,{method,headers,body:body?JSON.stringify(body):undefined,cache:'no-store',signal:AbortSignal.timeout(25000)});
   const data=await response.json().catch(()=>({}));
   if(!response.ok){const err=new Error(data.message||'Errore GitHub');err.status=response.status;throw err;}return data;
 }
@@ -67,11 +67,11 @@ async function refresh(silent=false){
   }catch(err){$('#sync-status').textContent='Sincronizzazione da riprovare';if(!silent)toast(errorText(err));}
   finally{state.loading=false;$('#refresh').disabled=false;}
 }
-async function connect(local=false){
+async function connect(local=false,oauth=false){
   const form=new FormData($('#login-form'));state.repo=String(form.get('repo')).trim();
   if(!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(state.repo))return;
-  state.local=local;state.token=local?'':String(form.get('token')).trim();
-  if(!local&&!state.token){$('#login-error').textContent='Inserisci il tuo token GitHub oppure usa la modalità locale.';return;}
+  state.local=local;state.oauth=oauth;state.token=local||oauth?'':String(form.get('token')).trim();
+  if(!local&&!oauth&&!state.token){$('#login-error').textContent='Inserisci il tuo token GitHub oppure usa la modalità locale.';return;}
   $('#login-form button').disabled=true;$('#local-login').disabled=true;$('#login-error').textContent='';
   try{
     state.user=await api('/user');
@@ -166,7 +166,7 @@ function closeEditor(){if(state.saving)return;if(editorSnapshot()!==state.editor
 $('#login-form').onsubmit=event=>{event.preventDefault();connect(false);};$('#local-login').onclick=()=>connect(true);
 $('#refresh').onclick=()=>refresh();$('#new-task').onclick=newTask;$('#close-editor').onclick=closeEditor;$('#editor-form').onsubmit=saveEditor;
 $('#editor').addEventListener('cancel',event=>{event.preventDefault();closeEditor();});
-$('#logout').onclick=()=>{clearInterval(state.poll);state.session++;state.token='';state.user=null;state.cache.clear();state.tasks=[];state.files=[];state.lastHead='';$('#content').innerHTML='';$('#app').hidden=true;$('#login').hidden=false;};
+$('#logout').onclick=async()=>{if(state.oauth){try{const response=await fetch('/auth/logout',{method:'POST',headers:{'X-Held-CSRF':state.csrf}});if(!response.ok&&response.status!==401)throw new Error();}catch{toast('Uscita non confermata: controlla la connessione e riprova.');return;}}state.oauth=false;state.csrf='';clearInterval(state.poll);state.session++;state.token='';state.user=null;state.cache.clear();state.tasks=[];state.files=[];state.lastHead='';$('#content').innerHTML='';$('#app').hidden=true;$('#login').hidden=false;};
 const mobileLogout=document.createElement('button');mobileLogout.className='icon-button mobile-logout';mobileLogout.textContent='↪';mobileLogout.setAttribute('aria-label','Esci dall’account');mobileLogout.onclick=()=>$('#logout').click();$('.topbar>div').append(mobileLogout);
 $('#download-draft').onclick=()=>{const blob=new Blob([buildDraft()],{type:'text/markdown;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=state.editor.path.split('/').pop();a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 document.addEventListener('click',event=>{
@@ -198,3 +198,21 @@ async function loadGraph(){
   const host=$('#graph-container');mountGraph(host,buildGraph(files),{onOpen:node=>{if(node.task)openTask(node.id);else{state.wikiPath=node.id;navigate('wiki');}}});
   if(errors.length){const warning=document.createElement('p');warning.className='graph-error';warning.textContent='Grafo parziale: impossibile leggere '+errors.join(', ')+'. Premi aggiorna per riprovare.';host.prepend(warning);}
 }
+
+async function initGitHubLogin(){
+  const button=$('#github-login'),status=$('#oauth-status');
+  try{
+    const response=await fetch('./auth-config.json',{cache:'no-store'});if(!response.ok)return;const config=await response.json();
+    if(config.github_login_url){const target=new URL(config.github_login_url);if(target.protocol!=='https:'||target.username||target.password)throw new Error();button.hidden=false;button.onclick=()=>location.assign(target.href);}
+    if(!config.managed_auth)return;
+    const sessionResponse=await fetch('/auth/session',{cache:'no-store'});const session=await sessionResponse.json();
+    if(!sessionResponse.ok){status.textContent=session.message||'Login GitHub in configurazione.';return;}
+    button.hidden=false;button.onclick=()=>location.assign('/auth/start');$('#login-form').hidden=true;$('.access-help').hidden=true;
+    $('#login-form [name=repo]').value=session.repo;
+    const error=new URL(location.href).searchParams.get('auth_error');
+    if(error){status.textContent=error==='access'?'Il tuo account o l’app non hanno accesso in scrittura alla wiki. Chiedi al proprietario di verificare l’invito e l’installazione.':'Accesso non completato. Premi Accedi con GitHub per riprovare.';history.replaceState(null,'',location.pathname);}
+    if(session.authenticated){state.csrf=session.csrf;await connect(false,true);if(!state.user)status.textContent=$('#login-error').textContent;}
+    else if(!error)status.textContent='Accedi con il tuo account GitHub. La sessione resta attiva su questo dispositivo fino a 8 ore.';
+  }catch{status.textContent='Accesso GitHub temporaneamente non disponibile.';}
+}
+initGitHubLogin();
