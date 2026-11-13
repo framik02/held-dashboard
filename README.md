@@ -4,7 +4,7 @@ Interfaccia responsive per coordinare un progetto con attività, fasi e wiki Mar
 
 ## Accesso con GitHub senza token manuali
 
-Servizio pubblicato su Cloudflare Workers Free il **13 novembre 2026**; login ancora da attivare con la registrazione GitHub App: [guida completa](SETUP-LOGIN.md). Usa una GitHub App e Cloudflare Workers Free, con sessione cifrata fino a otto ore. Servono una configurazione del proprietario e un collaudo reale; la versione GitHub Pages mantiene nel frattempo il login attuale.
+Login GitHub pubblicato il **13 novembre 2026** su [Cloudflare Workers Free](https://held-dashboard.chiarolanza-francesco.workers.dev); primo ingresso con account reale ancora da confermare: [guida completa](SETUP-LOGIN.md). Usa una GitHub App e Cloudflare Workers Free, con sessione cifrata fino a otto ore. Registrazione dell’app e configurazione dei secrets completate; resta il collaudo reale dell’utente. GitHub Pages mantiene nel frattempo il login precedente.
 
 ## Aprire sul computer
 

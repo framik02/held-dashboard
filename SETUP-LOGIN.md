@@ -1,6 +1,8 @@
 # Login con GitHub — attivazione una tantum
 
-Stato al **13 novembre 2026**, aggiornato dopo la scelta di Cloudflare: piano Workers Free verificato nell’account del proprietario e servizio pubblicato su https://held-dashboard.chiarolanza-francesco.workers.dev. L’interfaccia è raggiungibile; il login non è ancora attivo. Mancano registrazione della GitHub App, installazione sulla sola wiki, secrets e collaudo con account reali. GitHub Pages continua a usare il login esistente. Non modificare `auth-config.json` finché il nuovo servizio non funziona.
+Stato al **13 novembre 2026**: app GitHub [held-team-framik02](https://github.com/apps/held-team-framik02) registrata da framik02; client secret e chiave di sessione configurati nei secrets Cloudflare. Login pubblicato su https://held-dashboard.chiarolanza-francesco.workers.dev, piano Workers Free verificato. Controlli reali: pagina di accesso visibile senza campo token, sessione abilitata, reindirizzamento OAuth a GitHub e rifiuto delle richieste alla wiki senza sessione. Primo ingresso con account reale e installazione limitata alla wiki ancora da confermare nel collaudo dell’utente. GitHub Pages mantiene l’accesso precedente finché tale verifica non è conclusa.
+
+I passi di configurazione sotto sono una guida per ripristino o nuova installazione: non creare una seconda app e non rigenerare chiavi per usare la dashboard.
 
 ## Cosa cambia per il team
 
