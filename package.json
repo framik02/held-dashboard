@@ -1,0 +1,9 @@
+{
+  "name": "held-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Spazio di lavoro Held, con Markdown su GitHub come fonte unica",
+  "scripts": { "start": "node server.mjs", "test": "node --test tests/*.test.mjs" },
+  "engines": { "node": ">=22" }
+}

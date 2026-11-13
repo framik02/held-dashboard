@@ -1,0 +1,89 @@
+# Held · Dashboard del team
+
+Interfaccia responsive per coordinare un progetto con attività, fasi e wiki Markdown. Il sito pubblico contiene soltanto il codice: i dati vengono letti dal repository GitHub a cui l’utente è autorizzato ad accedere.
+
+## Aprire sul computer
+
+Prerequisiti: Node.js 22 o successivo, Git e GitHub CLI.
+
+```sh
+git clone https://github.com/framik02/held-dashboard.git
+cd held-dashboard
+gh auth login
+node server.mjs
+```
+
+Aprire http://127.0.0.1:4173. Non occorre installare dipendenze per usare la dashboard. Il server ascolta solo sul computer locale e usa GitHub CLI; nessun token viene inviato al browser. Il repository predefinito è `framik02/held-wiki`; può essere configurato con la variabile d’ambiente `HELD_REPO` prima dell’avvio.
+
+## Aprire dal telefono o da un altro computer
+
+Sito: https://framik02.github.io/held-dashboard/
+
+Inserire il repository e il proprio token GitHub. Per il proprietario: token fine-grained limitato alla wiki, permesso **Contents: Read and write**. Per i collaboratori di repository personali altrui, l’attuale limite GitHub può richiedere un token classic con scope **repo**: preferire una scadenza breve, considerato l’accesso ampio. La modalità locale con GitHub CLI evita l’inserimento manuale. Non condividere token: ogni persona usa il suo account, che deve avere accesso alla wiki.
+
+Il token è conservato solo nella memoria della scheda, mai in localStorage, cookie, repository o URL. Ricaricando/chiudendo la pagina occorre riconnettersi. I contenuti non sono accessibili senza autorizzazione anche se l’interfaccia è pubblica. Non c’è un server GitHub Pages che conservi password: il browser comunica direttamente con l’API GitHub.
+
+## Come si sincronizza
+
+- Una scheda attività corrisponde a `attivita/<id>.md` nella wiki. Non esiste un database duplicato.
+- Ogni salvataggio della dashboard crea un commit nel ramo `main`, attribuito dall’API all’account connesso.
+- L’AI e le persone possono modificare i medesimi Markdown. Le modifiche locali diventano visibili al team **dopo commit e push** (o merge della PR).
+- La dashboard controlla GitHub ogni 30 secondi quando la scheda è visibile. Il pulsante ↻ aggiorna subito.
+- La copia locale della wiki si aggiorna con `git pull --ff-only`: il sito non modifica automaticamente il filesystem del computer.
+- Il contenuto delle pagine si può leggere e modificare nella sezione Wiki. Scrivere in una pagina narrativa non crea automaticamente attività: creare/modificare le schede in `attivita/`.
+- I nomi, le descrizioni e i periodi delle fasi provengono dal campo `phases` di `attivita/README.md`, modificabile anche dalla vista Fasi. Gli ID delle cinque fasi rimangono stabili.
+- I commenti sono aggiunte al Markdown dell’attività; lo storico completo rimane nei commit GitHub.
+- I salvataggi usano lo SHA della versione letta: modifiche simultanee allo stesso file non vengono sovrascritte. In caso di conflitto, scaricare la bozza, riaprire la scheda aggiornata e integrare il proprio testo.
+
+La bacheca ha filtri per persona, fase e priorità; menu per cambiare stato, casella per completare/riaprire, sottoattività, commenti e distinzione fra incarico proposto e confermato. Nessuna email, candidatura, spesa o approvazione istituzionale viene inviata dalla dashboard.
+
+## Formato per assistenti AI
+
+```markdown
+---
+id: "H001"
+title: "Titolo concreto"
+type: "overview"
+updated: "2026-11-13"
+status: "todo"
+priority: "high"
+phase: "avvio"
+assignee: ""
+assignment: "proposed"
+due: ""
+schedule: "proposed"
+sources: ["../agenda.md"]
+---
+
+## Risultato atteso
+
+Che cosa prova il completamento.
+
+## Sottoattività
+
+- [ ] Un passo verificabile
+
+## Commenti
+
+### 2026-11-13T12:00:00Z · @autore
+
+> Un aggiornamento datato.
+```
+
+Valori: `status` = todo/doing/blocked/done; `priority` = high/medium/low; `phase` = avvio/ascolto/proposta/copertura/pilota; `assignment` e `schedule` = proposed/confirmed; `due` = YYYY-MM-DD oppure stringa vuota. Conservare metadati sconosciuti, fonti, commenti e ID. Le modifiche ai task non riscrivono automaticamente le pagine narrative: aggiornare la pagina pertinente se cambiano risultati o decisioni.
+
+## Verifiche
+
+```sh
+node --test tests/core.test.mjs
+```
+
+Le prove browser sono separate e richiedono Playwright installato nell’ambiente di sviluppo; avviare il server, poi `node tests/browser.mjs`. Usano dati fittizi e API simulate, senza scrivere nella wiki reale. La variabile `CHROME_PATH` può indicare il browser Chromium installato. Nessuna dipendenza viene caricata da CDN durante l’uso.
+
+## Fonti tecniche
+
+- [GitHub Pages: hosting statico](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)
+- [API Contents e controllo della versione SHA](https://docs.github.com/en/rest/repos/contents)
+- [Token personali e limiti dei fine-grained](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+
+Verifica documentale: 13 novembre 2026.

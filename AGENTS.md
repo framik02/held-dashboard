@@ -1,0 +1,9 @@
+# Dashboard Held
+
+Questo repository contiene soltanto codice e documentazione della dashboard pubblica, non i contenuti della wiki privata. Non copiare qui task reali, dossier, screenshot autenticati, token o dati dei collaboratori. Test e fixture devono essere fittizi.
+
+La fonte dati è il repository selezionato dall’utente. Mantenere la scrittura Markdown con controllo SHA; non introdurre copie del database o salvataggi forzati. Preservare campi non riconosciuti e commenti. Non memorizzare credenziali nel browser.
+
+Verificare parser, salvataggi, conflitti, errori API, interfaccia a 390 e 1440 px. Node senza dipendenze runtime. Il server locale resta su 127.0.0.1, con controllo Host, Origin e nonce; non trasformarlo in proxy generico. Nessun iframe o script di terze parti.
+
+La wiki e il codice hanno repository separati. Gli agenti che lavorano sui contenuti devono leggere AGENTS.md della wiki. Non dedurre che un’attività spuntata autorizzi invii esterni o spese.
