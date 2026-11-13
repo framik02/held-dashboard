@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#245a49"><meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#245b93"><meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.github.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
   <title>Held · Lo spazio del team</title><link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css">
 </head>
@@ -18,7 +18,7 @@
   </section>
 </div>
 <div id="app" class="shell" hidden>
-  <aside class="sidebar"><a class="brand" href="#">held<span>●</span></a><div class="workspace-label">SPAZIO DI LAVORO</div><nav aria-label="Navigazione principale"><button data-view="overview" class="active"><span>◈</span> Panoramica</button><button data-view="board"><span>▥</span> Attività <b id="task-count"></b></button><button data-view="phases"><span>◎</span> Fasi di lavoro</button><button data-view="wiki"><span>▤</span> Wiki</button></nav><div class="sidebar-note"><span class="leaf">↗</span><strong>Un passo alla volta.</strong><p>Ogni piccolo progresso costruisce il progetto.</p></div><div class="identity"><span class="avatar" id="user-avatar"></span><div><strong id="user-name"></strong><small>Connesso a GitHub</small></div><button id="logout" class="icon-button" aria-label="Esci" title="Esci">↪</button></div></aside>
+  <aside class="sidebar"><a class="brand" href="#">held<span>●</span></a><div class="workspace-label">SPAZIO DI LAVORO</div><nav aria-label="Navigazione principale"><button data-view="overview" class="active"><span>◈</span> Panoramica</button><button data-view="board"><span>▥</span> Attività <b id="task-count"></b></button><button data-view="phases"><span>◎</span> Fasi di lavoro</button><button data-view="wiki"><span>▤</span> Wiki</button><button data-view="graph"><span>◌</span> Grafo</button></nav><div class="sidebar-note"><span class="leaf">↗</span><strong>Un passo alla volta.</strong><p>Ogni piccolo progresso costruisce il progetto.</p></div><div class="identity"><span class="avatar" id="user-avatar"></span><div><strong id="user-name"></strong><small>Connesso a GitHub</small></div><button id="logout" class="icon-button" aria-label="Esci" title="Esci">↪</button></div></aside>
   <div class="workspace"><header class="topbar"><span id="breadcrumb">Held / Panoramica</span><div><span id="sync-status" role="status">In collegamento…</span><button id="refresh" class="icon-button" aria-label="Aggiorna da GitHub" title="Aggiorna da GitHub">↻</button><a id="repo-link" class="icon-button" target="_blank" rel="noopener noreferrer" aria-label="Apri repository GitHub">↗</a></div></header>
   <main id="main" tabindex="-1"><section class="page-head"><div><span class="eyebrow" id="page-eyebrow">IL NOSTRO PROGETTO</span><h1 id="page-title">Facciamo spazio alle idee.</h1><p id="page-description">La direzione è comune. Il prossimo passo è concreto.</p></div><button id="new-task" class="primary">＋ Nuova attività</button></section><div id="content"></div></main>
   <footer>Held · Conoscenza condivisa, progressi visibili.<span>Salvato nella wiki GitHub</span></footer></div>

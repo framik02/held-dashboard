@@ -75,7 +75,7 @@ Valori: `status` = todo/doing/blocked/done; `priority` = high/medium/low; `phase
 ## Verifiche
 
 ```sh
-node --test tests/core.test.mjs
+node --test tests/core.test.mjs tests/graph.test.mjs
 ```
 
 Le prove browser sono separate e richiedono Playwright installato nell’ambiente di sviluppo; avviare il server, poi `node tests/browser.mjs`. Usano dati fittizi e API simulate, senza scrivere nella wiki reale. La variabile `CHROME_PATH` può indicare il browser Chromium installato. Nessuna dipendenza viene caricata da CDN durante l’uso.
@@ -87,3 +87,13 @@ Le prove browser sono separate e richiedono Playwright installato nell’ambient
 - [Token personali e limiti dei fine-grained](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
 
 Verifica documentale: 13 novembre 2026.
+
+## Grafica, assegnatari e grafo
+
+Dal 13 novembre 2026: palette blu e ghiaccio e font variabile Manrope ospitato in fonts/ con licenza SIL OFL. Nessuna richiesta runtime a Google Fonts.
+
+Nella bacheca, Cambia apre il responsabile della scheda. Scelte rapide, nome libero e rimozione dell’assegnazione; la modifica del responsabile torna proposta finché viene esplicitamente confermata nel formulario. Salva nella wiki per condividere.
+
+La vista Grafo legge i titoli e i riferimenti dei Markdown, inclusi sources e wikilink univoci. Colori per fase delle attività, decisioni, progressi e altre pagine. Ricerca, filtro, legenda cliccabile, zoom, pan, pinch e apertura del nodo; l’elenco espandibile mostra i nomi completi. Il grafo non è una mappa di dipendenze dedotte: ogni arco corrisponde a un rimando presente nei file. Si aggiorna dai dati GitHub senza una base dati separata.
+
+Hosting: GitHub Pages per il sito e API GitHub per i dati. Nessun progetto o account Vercel è stato configurato. Il server locale è una modalità alternativa e ascolta solo su localhost.

@@ -1,3 +1,4 @@
+import {buildGraph,mountGraph} from './graph.js';
 import {STATUSES,PRIORITIES,PHASES,escapeHTML as e,parseMarkdown,serializeMarkdown,toTask,checklist,toggleCheck,addComment,encode64,decode64,markdownHTML,fileURL} from './core.js';
 const $=s=>document.querySelector(s);
 const state={repo:'framik02/held-wiki',token:'',local:false,nonce:'',user:null,tasks:[],files:[],cache:new Map(),view:'overview',filter:{search:'',assignee:'',phase:'',priority:''},loading:false,saving:false,editor:null,wikiPath:'stato.md',wikiQuery:'',lastHead:'',poll:null,session:0};
@@ -95,7 +96,7 @@ function renderOverview(){
 function options(values,selected,empty){return (empty?`<option value="">${empty}</option>`:'')+Object.entries(values).map(([k,v])=>`<option value="${e(k)}" ${k===selected?'selected':''}>${e(v)}</option>`).join('');}
 function renderBoard(){
   const f=state.filter, tasks=filteredTasks(), owners=Object.fromEntries([...new Set(state.tasks.map(t=>t.assignee).filter(Boolean))].map(x=>[x,x]));
-  return `<div class="filters"><input id="task-search" type="search" placeholder="Cerca un’attività…" aria-label="Cerca attività" value="${e(f.search)}"><select id="filter-assignee" aria-label="Filtra per responsabile">${options(owners,f.assignee,'Tutte le persone')}</select><select id="filter-phase" aria-label="Filtra per fase">${options(Object.fromEntries(Object.entries(PHASES).map(([k,v])=>[k,v.name])),f.phase,'Tutte le fasi')}</select><select id="filter-priority" aria-label="Filtra per priorità">${options(PRIORITIES,f.priority,'Tutte le priorità')}</select></div><div class="board">${Object.entries(STATUSES).map(([key,label])=>`<section class="column" data-status="${key}"><div class="column-head"><span>${label}</span><b>${tasks.filter(t=>t.status===key).length}</b></div>${tasks.filter(t=>t.status===key).map(t=>`<article class="task-card"><div class="card-top"><span class="tag ${t.priority}">${PRIORITIES[t.priority]}</span><button class="check-button ${t.status==='done'?'done':''}" data-toggle="${e(t.path)}" aria-label="${t.status==='done'?'Riapri':'Completa'}: ${e(t.title)}">${t.status==='done'?'✓':''}</button></div><button class="card-open" data-task="${e(t.path)}">${e(t.title)}</button><div class="meta"><span>${e(PHASES[t.phase].name)}</span><span class="avatar" title="${e(ownerLabel(t))}">${e(initials(t.assignee))}</span></div><p class="help">${e(ownerLabel(t))}${t.due?' · '+e(t.due):''}</p><select data-status-task="${e(t.path)}" aria-label="Stato di ${e(t.title)}">${options(STATUSES,t.status)}</select></article>`).join('')||'<div class="empty">Nessuna attività qui.</div>'}</section>`).join('')}</div>`;
+  return `<div class="filters"><input id="task-search" type="search" placeholder="Cerca un’attività…" aria-label="Cerca attività" value="${e(f.search)}"><select id="filter-assignee" aria-label="Filtra per responsabile">${options(owners,f.assignee,'Tutte le persone')}</select><select id="filter-phase" aria-label="Filtra per fase">${options(Object.fromEntries(Object.entries(PHASES).map(([k,v])=>[k,v.name])),f.phase,'Tutte le fasi')}</select><select id="filter-priority" aria-label="Filtra per priorità">${options(PRIORITIES,f.priority,'Tutte le priorità')}</select></div><div class="board">${Object.entries(STATUSES).map(([key,label])=>`<section class="column" data-status="${key}"><div class="column-head"><span>${label}</span><b>${tasks.filter(t=>t.status===key).length}</b></div>${tasks.filter(t=>t.status===key).map(t=>`<article class="task-card"><div class="card-top"><span class="tag ${t.priority}">${PRIORITIES[t.priority]}</span><button class="check-button ${t.status==='done'?'done':''}" data-toggle="${e(t.path)}" aria-label="${t.status==='done'?'Riapri':'Completa'}: ${e(t.title)}">${t.status==='done'?'✓':''}</button></div><button class="card-open" data-task="${e(t.path)}">${e(t.title)}</button><div class="meta"><span>${e(PHASES[t.phase].name)}</span><span class="avatar" title="${e(ownerLabel(t))}">${e(initials(t.assignee))}</span></div><button class="owner-trigger" data-assign="${e(t.path)}" aria-label="Cambia assegnatario: ${e(t.title)}"><span>${e(ownerLabel(t))}</span><span>Cambia ↗</span></button><p class="help">${t.due?' · '+e(t.due):''}</p><select data-status-task="${e(t.path)}" aria-label="Stato di ${e(t.title)}">${options(STATUSES,t.status)}</select></article>`).join('')||'<div class="empty">Nessuna attività qui.</div>'}</section>`).join('')}</div>`;
 }
 function renderPhases(){return `<div class="note-strip" style="margin-top:0;margin-bottom:22px"><p>Calendario proposto nell’agenda. Le fasi successive dipendono da copertura finanziaria e tutele, non da una data già fissata.</p></div><div class="phases-list">${Object.entries(PHASES).map(([key,p],i)=>{const s=phaseStats(key);return `<article class="phase-card"><span class="phase-number">0${i+1}</span><div><span class="eyebrow">${e(p.period)}</span><h2>${e(p.name)}</h2><p>${e(p.description)}</p><button class="text-button" data-phase="${key}">Vedi le attività ↗</button></div><div><small>${s.done} di ${s.total} completate · ${s.percent}%</small><div class="bar"><span style="width:${s.percent}%"></span></div></div></article>`;}).join('')}</div>`;}
 function renderWiki(){
@@ -106,12 +107,13 @@ let wikiRequest=0;
 async function loadWiki(){const request=++wikiRequest;try{const file=await readFile(state.wikiPath);if(request!==wikiRequest||state.view!=='wiki')return;const p=parseMarkdown(file.raw);$('#wiki-article').innerHTML=`<div class="article-toolbar"><small>${e(file.path)}</small><button class="secondary" id="edit-doc">Modifica pagina</button></div><div class="markdown">${markdownHTML(p.body,file.path,state.repo)}</div>`;$('#edit-doc').onclick=()=>openDoc(file);}catch(err){if($('#wiki-article'))$('#wiki-article').innerHTML=`<div class="empty">${e(errorText(err))}</div>`;}}
 function render(){
   if(!state.user)return;
-  const titles={overview:['IL NOSTRO PROGETTO','Facciamo spazio alle idee.','La direzione è comune. Il prossimo passo è concreto.'],board:['DAL PIANO ALL’AZIONE','Il lavoro, un passo alla volta.','Priorità chiare, responsabilità condivise e nessun pezzo perso.'],phases:['LA STRADA DAVANTI','Una direzione, cinque fasi.','Dall’ascolto al primo pilota. Con il tempo necessario per farlo bene.'],wiki:['LA NOSTRA CONOSCENZA','Quello che sappiamo, insieme.','Le stesse pagine che leggete e aggiornate con i vostri assistenti AI.']};
+  const titles={graph:['LA MAPPA DEL PROGETTO','Le idee, collegate.','Esplora pagine, attività e relazioni nella wiki condivisa.'],overview:['IL NOSTRO PROGETTO','Facciamo spazio alle idee.','La direzione è comune. Il prossimo passo è concreto.'],board:['DAL PIANO ALL’AZIONE','Il lavoro, un passo alla volta.','Priorità chiare, responsabilità condivise e nessun pezzo perso.'],phases:['LA STRADA DAVANTI','Una direzione, cinque fasi.','Dall’ascolto al primo pilota. Con il tempo necessario per farlo bene.'],wiki:['LA NOSTRA CONOSCENZA','Quello che sappiamo, insieme.','Le stesse pagine che leggete e aggiornate con i vostri assistenti AI.']};
   const [eyebrow,title,description]=titles[state.view];$('#page-eyebrow').textContent=eyebrow;$('#page-title').textContent=title;$('#page-description').textContent=description;
-  $('#breadcrumb').textContent='Held / '+({overview:'Panoramica',board:'Attività',phases:'Fasi di lavoro',wiki:'Wiki'}[state.view]);$('#task-count').textContent=state.tasks.filter(t=>t.status!=='done').length;
+  $('#breadcrumb').textContent='Held / '+({overview:'Panoramica',board:'Attività',phases:'Fasi di lavoro',wiki:'Wiki',graph:'Grafo'}[state.view]);$('#task-count').textContent=state.tasks.filter(t=>t.status!=='done').length;
   document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===state.view));
-  $('#content').innerHTML=(state.errors?.length?`<div class="warning-banner">${state.errors.map(e).join('<br>')}<br>Correggi i metadati nella wiki. Le altre attività sono disponibili.</div>`:'')+({overview:renderOverview,board:renderBoard,phases:renderPhases,wiki:renderWiki}[state.view])();
+  $('#content').innerHTML=(state.errors?.length?`<div class="warning-banner">${state.errors.map(e).join('<br>')}<br>Correggi i metadati nella wiki. Le altre attività sono disponibili.</div>`:'')+({overview:renderOverview,board:renderBoard,phases:renderPhases,wiki:renderWiki,graph:renderGraph}[state.view])();
   if(state.view==='wiki')loadWiki();
+  if(state.view==='graph')loadGraph();
   if(state.view==='phases'){
     const button=document.createElement('button');button.className='secondary';button.style.marginTop='18px';button.textContent='Modifica nomi e calendario delle fasi';button.onclick=async()=>{try{openDoc(await readFile('attivita/README.md',true));}catch(err){toast(errorText(err));}};$('#content').append(button);
   }
@@ -124,6 +126,13 @@ function showDialog(editor,fields){
   $('#editor-title').textContent=editor.kind==='doc'?'Modifica pagina':editor.sha?'Dettaglio attività':'Una nuova attività';
   $('#editor-kicker').textContent=editor.kind==='doc'?'WIKI CONDIVISA':'ATTIVITÀ';$('#source-link').href=fileURL(editor.path,state.repo);$('#source-link').hidden=!editor.sha;
   $('#editor').showModal();state.editor.initial=editorSnapshot();
+  if(editor.kind==='task'){
+    const assignee=$('#editor-form [name=assignee]');
+    const choices=document.createElement('div');choices.className='owner-options';choices.setAttribute('aria-label','Scelta rapida del responsabile');
+    choices.innerHTML=['Franco','Flavio','Othello',''].map(name=>'<button type="button" data-owner="'+e(name)+'">'+e(name||'Da assegnare')+'</button>').join('');
+    $('#editor-fields').prepend(choices);
+    assignee.addEventListener('input',()=>$('#editor-form [name=assignment]').value='proposed');
+  }
 }
 function editorSnapshot(){return JSON.stringify([...new FormData($('#editor-form')).entries()]);}
 function taskFields(t){
@@ -164,6 +173,8 @@ document.addEventListener('click',event=>{
   const target=event.target.closest('button');if(!target)return;
   if(target.dataset.view)navigate(target.dataset.view);if(target.dataset.nav)navigate(target.dataset.nav);
   if(target.dataset.task)openTask(target.dataset.task);
+  if(target.dataset.assign){openTask(target.dataset.assign);const input=$('#editor-form [name=assignee]');input.focus();input.select();}
+  if(Object.hasOwn(target.dataset,'owner')){const input=$('#editor-form [name=assignee]');input.value=target.dataset.owner;$('#editor-form [name=assignment]').value='proposed';input.focus();}
   if(target.dataset.toggle){const t=state.tasks.find(t=>t.path===target.dataset.toggle);updateStatus(t.path,t.status==='done'?'todo':'done');}
   if(target.dataset.phase){state.filter.phase=target.dataset.phase;navigate('board');}
   if(target.dataset.doc){state.wikiPath=target.dataset.doc;render();}
@@ -172,3 +183,18 @@ document.addEventListener('change',event=>{if(event.target.dataset.statusTask)up
 window.addEventListener('beforeunload',event=>{if(state.editor&&editorSnapshot()!==state.editor.initial){event.preventDefault();event.returnValue='';}});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh(true);});
 if(['localhost','127.0.0.1'].includes(location.hostname))fetch('/api/config').then(r=>r.json()).then(config=>{if(config.local){state.nonce=config.nonce;$('#local-login').hidden=false;$('#login-form [name=repo]').value=config.repo;connect(true);}}).catch(()=>{});
+
+let graphRequest=0;
+function renderGraph(){return '<div id="graph-container"><div class="loading">Collego le pagine della wiki…</div></div>';}
+async function loadGraph(){
+  const request=++graphRequest,session=state.session;const pages=state.files.filter(f=>!f.path.startsWith('.'));const files=[],errors=[];
+  for(let i=0;i<pages.length;i+=6){
+    if(state.view!=='graph'||request!==graphRequest||session!==state.session)return;
+    const results=await Promise.allSettled(pages.slice(i,i+6).map(f=>readFile(f.path)));
+    results.forEach((r,j)=>r.status==='fulfilled'?files.push(r.value):errors.push(pages[i+j].path));
+    const loading=$('#graph-container .loading');if(loading)loading.textContent='Collego le pagine… '+Math.min(i+6,pages.length)+'/'+pages.length;
+  }
+  if(state.view!=='graph'||request!==graphRequest||session!==state.session)return;
+  const host=$('#graph-container');mountGraph(host,buildGraph(files),{onOpen:node=>{if(node.task)openTask(node.id);else{state.wikiPath=node.id;navigate('wiki');}}});
+  if(errors.length){const warning=document.createElement('p');warning.className='graph-error';warning.textContent='Grafo parziale: impossibile leggere '+errors.join(', ')+'. Premi aggiorna per riprovare.';host.prepend(warning);}
+}

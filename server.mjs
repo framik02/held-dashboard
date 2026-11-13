@@ -8,8 +8,8 @@ import {randomBytes} from 'node:crypto';
 const root=path.dirname(fileURLToPath(import.meta.url));
 const port=Number(process.env.PORT||4173),repo=process.env.HELD_REPO||'framik02/held-wiki';
 const nonce=randomBytes(32).toString('hex');
-const assets=new Map([['/','index.html'],['/index.html','index.html'],['/app.js','app.js'],['/core.js','core.js'],['/style.css','style.css'],['/icon.svg','icon.svg']]);
-const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml'};
+const assets=new Map([['/','index.html'],['/index.html','index.html'],['/app.js','app.js'],['/core.js','core.js'],['/style.css','style.css'],['/icon.svg','icon.svg'],['/graph.js','graph.js'],['/fonts/manrope-variable.ttf','fonts/manrope-variable.ttf']]);
+const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.ttf':'font/ttf'};
 const gh=process.platform==='win32'?'gh.exe':'gh';
 function respond(res,status,data,type='application/json') {res.writeHead(status,{'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Cross-Origin-Resource-Policy':'same-origin','X-Frame-Options':'DENY'});res.end(type==='application/json'?JSON.stringify(data):data);}
 export function allowedEndpoint(endpoint,method,repository){

@@ -1,0 +1,7 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {buildGraph,resolveReference,layoutGraph} from '../graph.js';
+const files=[{path:'stato.md',raw:'# Stato del progetto\n[Attività](attivita/a.md)\n'},{path:'attivita/a.md',raw:'---\ntitle: "Attività A"\nphase: "ascolto"\nstatus: "todo"\nsources: ["../stato.md"]\n---\n[Stato](../stato.md#capitolo)\n[Esterno](https://example.com/a.md)\n\n'},{path:'decisioni.md',raw:'# Decisioni\n[[stato]]'}];
+test('Il grafo usa titoli, fasi e fonti senza duplicare collegamenti',()=>{const g=buildGraph(files);assert.equal(g.nodes.length,3);assert.equal(g.links.length,2);assert.equal(g.nodes[1].category,'ascolto');assert.equal(g.nodes[1].title,'Attività A');assert.equal(g.nodes[2].category,'decisioni');});
+test('I rimandi esterni, rotti e ai soli anchor non diventano nodi',()=>{const paths=new Set(files.map(f=>f.path));assert.equal(resolveReference('../stato.md#capitolo','attivita/a.md',paths),'stato.md');for(const bad of ['https://example.com/stato.md','//example.com/stato.md','../inesistente.md','#capitolo'])assert.equal(resolveReference(bad,'attivita/a.md',paths),null);});
+test('Il layout è deterministico e produce coordinate finite anche per nodi isolati',()=>{const g=buildGraph(files),a=layoutGraph(g.nodes,g.links);assert.deepEqual(a,layoutGraph(g.nodes,g.links));assert.ok(a.every(n=>Number.isFinite(n.x)&&Number.isFinite(n.y)));assert.deepEqual(layoutGraph([],[]),[]);});

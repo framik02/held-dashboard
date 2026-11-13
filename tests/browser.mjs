@@ -5,7 +5,7 @@ import {encode64,serializeMarkdown,parseMarkdown} from '../core.js';
 const files=new Map();let revision=1,failNext=false;
 function put(path,raw){files.set(path,{raw,sha:`sha-${revision++}`});}
 function task(title,phase,status='todo'){return serializeMarkdown('',{id:title,title,type:'overview',updated:'2026-11-13',status,priority:'high',phase,assignee:'Persona A',assignment:'proposed',due:'',schedule:'proposed',sources:[]},'## Risultato atteso\n\nUna consegna di prova.\n\n## Sottoattività\n\n- [ ] Primo passo\n\n## Commenti\n');}
-put('attivita/a.md',task('Preparare la scheda','avvio'));
+put('attivita/a.md',task('Preparare la scheda','avvio')+'\n[Stato](../stato.md)\n');
 put('attivita/b.md',task('Ascoltare le persone','ascolto','doing'));
 put('attivita/c.md',task('Condividere la wiki','avvio','done'));
 put('attivita/README.md','---\nphases: {"avvio":{"name":"Avvio del team","period":"Periodo proposto","description":"Un passo comune."}}\n---\n\n# Fasi\n');
@@ -53,9 +53,32 @@ try{
   await page.getByRole('button',{name:'Salva nella wiki'}).click();await page.locator('dialog').waitFor({state:'hidden'});await page.getByText('Nuovo risultato condiviso.',{exact:true}).waitFor();
   put('stato.md',files.get('stato.md').raw+'\nArrivato dall’assistente AI.\n');await page.getByRole('button',{name:'Aggiorna da GitHub'}).click();await page.getByText('Arrivato dall’assistente AI.',{exact:true}).waitFor();
   await page.locator('[data-view=board]').click();await page.locator('#filter-assignee').selectOption('Persona B');assert.equal(await page.locator('.task-card').count(),1);await page.locator('#filter-assignee').selectOption('');
+
+  await page.locator('[data-assign="attivita/a.md"]').click();
+  await page.locator('[data-owner="Othello"]').click();
+  await page.getByRole('button',{name:'Salva nella wiki'}).click();await page.locator('dialog').waitFor({state:'hidden'});
+  assert.equal(parseMarkdown(files.get('attivita/a.md').raw).meta.assignee,'Othello');
+  await page.locator('[data-assign="attivita/a.md"]').click();await page.locator('[data-owner=""]').click();
+  await page.getByRole('button',{name:'Salva nella wiki'}).click();await page.locator('dialog').waitFor({state:'hidden'});assert.equal(parseMarkdown(files.get('attivita/a.md').raw).meta.assignee,'');
+  await page.locator('[data-view=graph]').click();await page.locator('#wiki-graph').waitFor();
+  assert.equal(await page.locator('.graph-node').count(),files.size);
+  assert.ok(await page.locator('.graph-edge').count()>=1);
+  assert.ok(await page.locator('.graph-node .node-label').count()===files.size);
+  await page.locator('[data-node="attivita/a.md"] .node-dot').click();
+  await page.locator('#graph-detail').getByRole('heading',{name:'Preparare la scheda'}).waitFor();
+  await page.getByRole('button',{name:'Apri attività',exact:false}).click();await page.locator('dialog').waitFor();
+  await page.getByRole('button',{name:'Chiudi',exact:true}).click();
+  await page.locator('#graph-type').selectOption('ascolto');assert.equal(await page.locator('.graph-node').count(),1);
+  await page.locator('#graph-type').selectOption('');
+  const transform=await page.locator('#graph-world').getAttribute('transform');await page.getByRole('button',{name:'Ingrandisci grafo'}).click();assert.notEqual(await page.locator('#graph-world').getAttribute('transform'),transform);
+  await page.getByRole('button',{name:'Centra il grafo'}).click();
+  await page.locator('#graph-search').fill('stato.md');await page.getByText('1 nodi', {exact:false}).waitFor();await page.locator('#graph-search').fill('');
+  await page.locator('[data-node="stato.md"]').focus();await page.keyboard.press('Enter');await page.getByRole('button',{name:'Apri pagina',exact:false}).click();await page.getByRole('heading',{name:'Stato di prova'}).waitFor();
+  await page.evaluate(()=>document.fonts.ready);assert.equal(await page.evaluate(()=>document.fonts.check('14px Manrope')),true);
   await page.locator('[data-view=overview]').click();await page.screenshot({path:'../held-desktop-test.png',fullPage:true});
   await page.setViewportSize({width:390,height:844});
-  for(const view of ['overview','board','phases','wiki']){await page.locator(`[data-view=${view}]`).click();await page.waitForTimeout(120);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Overflow orizzontale in ${view}`);}
+  for(const view of ['overview','board','phases','wiki','graph']){await page.locator(`[data-view=${view}]`).click();await page.waitForTimeout(120);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`Overflow orizzontale in ${view}`);}
+  await page.locator('#wiki-graph').waitFor();await page.screenshot({path:'../held-graph-mobile-test.png',fullPage:true});
   await page.locator('[data-view=board]').click();await page.screenshot({path:'../held-mobile-test.png',fullPage:true});
-  assert.deepEqual(errors,[]);console.log('Browser OK: creazione, sottoattività, commenti, conflitto, recupero errore, stati, modifica wiki, aggiornamento AI, filtri, desktop e quattro viste mobile.');
+  assert.deepEqual(errors,[]);console.log('Browser OK: creazione, sottoattività, commenti, conflitto, recupero errore, stati, modifica wiki, aggiornamento AI, filtri, assegnazione e rimozione responsabile, grafo/filtri/zoom/apertura nodi, font Manrope, desktop e cinque viste mobile.');
 }finally{await browser.close();}
