@@ -15,9 +15,11 @@ function respond(res,status,data,type='application/json') {res.writeHead(status,
 export function allowedEndpoint(endpoint,method,repository){
   if(method==='GET'&&(endpoint==='/user'||endpoint===`/repos/${repository}`||endpoint===`/repos/${repository}/git/trees/main?recursive=1`))return true;
   const prefix=`/repos/${repository}/contents/`;
-  if(!endpoint.startsWith(prefix)||!['GET','PUT'].includes(method))return false;
+  if(!endpoint.startsWith(prefix)||!['GET','PUT','DELETE'].includes(method))return false;
   let p;try{p=decodeURIComponent(endpoint.slice(prefix.length).split('?')[0]);}catch{return false;}
-  return p.endsWith('.md')&&!p.split('/').some(x=>!x||x==='.'||x==='..'||x.startsWith('.'))&&!p.includes('\\')&&!p.includes('\0');
+  const ok=p.endsWith('.md')&&!p.split('/').some(x=>!x||x==='.'||x==='..'||x.startsWith('.'))&&!p.includes('\\')&&!p.includes('\0');
+  if(method==='DELETE')return ok&&/^attivita\/[^/]+\.md$/.test(p)&&!/\/README\.md$/i.test(p);
+  return ok;
 }
 async function getBody(req){let body='';for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>1024*1024)throw new Error('Richiesta troppo grande.');}return body;}
 function callGitHub(endpoint,method,body){return new Promise(resolve=>{
@@ -40,8 +42,9 @@ export function createServer(){return http.createServer(async(req,res)=>{
       if(req.headers['x-held-local']!==nonce)return respond(res,403,{message:'Sessione locale non valida. Ricarica la pagina.'});
       const endpoint=req.url.slice('/api/github'.length);
       if(!allowedEndpoint(endpoint,req.method,repo))return respond(res,403,{message:'Questa operazione non è disponibile nella dashboard.'});
-      const body=req.method==='PUT'?await getBody(req):'';
-      if(body){const parsed=JSON.parse(body);if(parsed.branch!=='main'||typeof parsed.content!=='string'||typeof parsed.message!=='string')return respond(res,400,{message:'Dati non validi.'});}
+      const body=['PUT','DELETE'].includes(req.method)?await getBody(req):'';
+      if(req.method==='PUT'){const parsed=JSON.parse(body||'{}');if(parsed.branch!=='main'||typeof parsed.content!=='string'||typeof parsed.message!=='string')return respond(res,400,{message:'Dati non validi.'});}
+      if(req.method==='DELETE'){const parsed=JSON.parse(body||'{}');if(parsed.branch!=='main'||typeof parsed.sha!=='string'||typeof parsed.message!=='string'||parsed.content!==undefined)return respond(res,400,{message:'Dati non validi.'});}
       const result=await callGitHub(endpoint,req.method,body);return respond(res,result.status,result.data);
     }
     if(req.method!=='GET'||!assets.has(url.pathname))return respond(res,404,{message:'Non trovato.'});

@@ -36,7 +36,7 @@ test('session restore never sends the GitHub token to JavaScript',async()=>{
 test('proxy is restricted to main Markdown files in the configured repository',()=>{
  assert.ok(allowed('/repos/team/wiki/contents/docs/test.md?ref=main','GET','team/wiki'));
  for(const p of ['/repos/other/wiki/contents/a.md','/repos/team/wiki/contents/.github/a.md','/repos/team/wiki/contents/%2e%2e/a.md','/repos/team/wiki/contents/a.md?ref=other','/repos/team/wiki/contents/a.js','/repos/team/wiki/contents/a%5cb.md'])assert.equal(allowed(p,'GET','team/wiki'),false,p);
- assert.equal(allowed('/repos/team/wiki/contents/a.md','DELETE','team/wiki'),false);
+ assert.equal(allowed('/repos/team/wiki/contents/a.md','DELETE','team/wiki'),false);assert.equal(allowed('/repos/team/wiki/contents/attivita/h001.md','DELETE','team/wiki'),true);assert.equal(allowed('/repos/team/wiki/contents/attivita/README.md','DELETE','team/wiki'),false);assert.equal(allowed('/repos/team/wiki/contents/docs/a.md','DELETE','team/wiki'),false);
 });
 test('writes require session, same origin and CSRF; preserve SHA conflicts',async()=>{
  const path='/api/github/repos/team/wiki/contents/docs/a.md',body=JSON.stringify({branch:'main',message:'Test',content:'dGVzdA==',sha:'old-sha'});

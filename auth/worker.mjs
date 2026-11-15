@@ -16,10 +16,13 @@ function configured(env){return !!env.GITHUB_CLIENT_ID&&!!env.GITHUB_CLIENT_SECR
 function equal(a,b){if(typeof a!=='string'||typeof b!=='string'||a.length!==b.length)return false;let difference=0;for(let i=0;i<a.length;i++)difference|=a.charCodeAt(i)^b.charCodeAt(i);return difference===0;}
 export function allowed(endpoint,method,repo){
  if(method==='GET'&&['/user',`/repos/${repo}`,`/repos/${repo}/git/trees/main?recursive=1`].includes(endpoint))return true;
- const prefix=`/repos/${repo}/contents/`;if(!endpoint.startsWith(prefix)||!['GET','PUT'].includes(method))return false;
+ const prefix=`/repos/${repo}/contents/`;if(!endpoint.startsWith(prefix)||!['GET','PUT','DELETE'].includes(method))return false;
  const [raw,query]=endpoint.slice(prefix.length).split('?');if(query&&(method!=='GET'||query!=='ref=main'))return false;
  let p;try{p=decodeURIComponent(raw);}catch{return false;}
- return p.endsWith('.md')&&!p.split('/').some(part=>!part||part.startsWith('.'))&&!/[\\\0?#]/.test(p);
+ const ok=p.endsWith('.md')&&!p.split('/').some(part=>!part||part.startsWith('.'))&&!/[\\\0?#]/.test(p);
+ // Si possono cancellare soltanto le schede attività, mai l'indice o le pagine della wiki.
+ if(method==='DELETE')return ok&&/^attivita\/[^/]+\.md$/.test(p)&&!/\/README\.md$/i.test(p);
+ return ok;
 }
 async function github(endpoint,token,method='GET',body,fetcher=fetch){return fetcher('https://api.github.com'+endpoint,{method,headers:{Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','User-Agent':'Held-Dashboard',...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,redirect:'manual',signal:AbortSignal.timeout(20000)});}
 async function session(req,env){return unseal(cookies(req)[SESSION],env,'session');}
@@ -72,6 +75,9 @@ export async function handle(req,env,transport=fetch){
    let body;if(req.method==='PUT'){
      try{body=await readBody(req);}catch{return json({message:'Richiesta non valida o troppo grande.'},400);}
      if(!body||Array.isArray(body)||body.branch!=='main'||typeof body.content!=='string'||typeof body.message!=='string'||body.message.length>500||(body.sha!==undefined&&typeof body.sha!=='string')||Object.keys(body).some(k=>!['branch','content','message','sha'].includes(k)))return json({message:'Dati non validi.'},400);
+   }else if(req.method==='DELETE'){
+     try{body=await readBody(req);}catch{return json({message:'Richiesta non valida o troppo grande.'},400);}
+     if(!body||Array.isArray(body)||body.branch!=='main'||typeof body.sha!=='string'||typeof body.message!=='string'||body.message.length>500||Object.keys(body).some(k=>!['branch','message','sha'].includes(k)))return json({message:'Dati non validi.'},400);
    }
    const response=await github(endpoint,current.token,req.method,body,fetcher);const h=headers();h.set('Content-Type','application/json');if(response.status===401)h.set('Set-Cookie',cookie(SESSION,'',0));
    return new Response(await response.text(),{status:response.status,headers:h});
