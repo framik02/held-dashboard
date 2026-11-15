@@ -1,7 +1,7 @@
 import {buildGraph,mountGraph} from './graph.js';
 import {CATEGORIES,categoryLabel,STATUSES,PRIORITIES,PHASES,escapeHTML as e,parseMarkdown,serializeMarkdown,toTask,checklist,toggleCheck,addComment,encode64,decode64,markdownHTML,fileURL} from './core.js';
 const $=s=>document.querySelector(s);
-const state={repo:'framik02/held-wiki',token:'',oauth:false,csrf:'',local:false,nonce:'',user:null,tasks:[],files:[],cache:new Map(),view:'overview',groupBy:'category',filter:{search:'',assignee:'',phase:'',priority:'',category:''},loading:false,saving:false,editor:null,wikiPath:'stato.md',wikiQuery:'',lastHead:'',poll:null,session:0};
+const state={repo:'framik02/held-wiki',token:'',oauth:false,csrf:'',local:false,nonce:'',user:null,tasks:[],files:[],cache:new Map(),view:'overview',groupBy:'category',filter:{search:'',assignee:'',phase:'',priority:'',category:''},loading:false,saving:false,editor:null,wikiPath:'stato.md',meetingPath:'',docPath:'',hideDone:(()=>{try{return localStorage.getItem('held.hideDone')!=='0';}catch{return true;}})(),wikiQuery:'',lastHead:'',poll:null,session:0};
 let toastTimer,disposeGraph=null;
 const mobileMenu=matchMedia('(max-width:720px)');
 let menuOpen=!mobileMenu.matches;
@@ -103,7 +103,7 @@ async function connect(local=false,oauth=false){
   finally{$('#login-form button').disabled=false;$('#local-login').disabled=false;}
 }
 function navigate(view){if(mobileMenu.matches)setMenu(false,true);state.view=view;render();window.scrollTo({top:0,behavior:'instant'});}
-function filteredTasks(){const f=state.filter;return sorted(state.tasks.filter(t=>(!f.search||`${t.title} ${t.body} ${t.assignee}`.toLowerCase().includes(f.search.toLowerCase()))&&(!f.assignee||t.assignee===f.assignee)&&(!f.phase||t.phase===f.phase)&&(!f.priority||t.priority===f.priority)&&(!f.category||(t.category||'unclassified')===f.category)));}
+function filteredTasks(){const f=state.filter;return sorted(state.tasks.filter(t=>(!f.search||`${t.title} ${t.body} ${t.assignee}`.toLowerCase().includes(f.search.toLowerCase()))&&(!f.assignee||t.assignee===f.assignee)&&(!f.phase||t.phase===f.phase)&&(!f.priority||t.priority===f.priority)&&(!f.category||(t.category||'unclassified')===f.category)&&(!state.hideDone||t.status!=='done')));}
 function phaseStats(key){const all=state.tasks.filter(t=>t.phase===key);const done=all.filter(t=>t.status==='done').length;return {total:all.length,done,percent:all.length?Math.round(done/all.length*100):0};}
 function taskRow(t){return `<div class="task-row"><button class="check-button ${t.status==='done'?'done':''}" data-toggle="${e(t.path)}" aria-label="${t.status==='done'?'Riapri':'Completa'}: ${e(t.title)}">${t.status==='done'?'✓':''}</button><button class="row-open" data-task="${e(t.path)}"><strong>${e(t.title)}</strong><small>${e(ownerLabel(t))} · ${e(categoryLabel(t.category))} · ${e(PHASES[t.phase].name)}</small></button><span class="tag ${t.priority}">${PRIORITIES[t.priority]}</span></div>`;}
 function renderOverview(){
@@ -117,23 +117,60 @@ function taskCard(t){return `<article class="task-card"><div class="card-top"><s
 function renderBoard(){
  const f=state.filter,tasks=filteredTasks(),owners=Object.fromEntries([...new Set(state.tasks.map(t=>t.assignee).filter(Boolean))].map(x=>[x,x]));
  const groups=state.groupBy==='category'?Object.entries(categoryOptions()).filter(([key])=>state.tasks.some(t=>(t.category||'unclassified')===key)):Object.entries(STATUSES);
- return `<div class="board-view"><label>Raggruppa per <select id="group-tasks"><option value="category" ${state.groupBy==='category'?'selected':''}>Area di lavoro</option><option value="status" ${state.groupBy==='status'?'selected':''}>Stato di avanzamento</option></select></label><span>${tasks.length} attività visualizzate</span></div><div class="filters"><input id="task-search" type="search" placeholder="Cerca un’attività…" aria-label="Cerca attività" value="${e(f.search)}"><select id="filter-category" aria-label="Filtra per area">${options(categoryOptions(),f.category,'Tutte le aree')}</select><select id="filter-assignee" aria-label="Filtra per responsabile">${options(owners,f.assignee,'Tutte le persone')}</select><select id="filter-phase" aria-label="Filtra per fase">${options(Object.fromEntries(Object.entries(PHASES).map(([k,v])=>[k,v.name])),f.phase,'Tutte le fasi')}</select><select id="filter-priority" aria-label="Filtra per priorità">${options(PRIORITIES,f.priority,'Tutte le priorità')}</select></div><div class="board ${state.groupBy==='category'?'board-areas':''}">${groups.map(([key,label])=>{const items=tasks.filter(t=>state.groupBy==='category'?(t.category||'unclassified')===key:t.status===key);if(state.groupBy==='category'&&!items.length)return '';return '<section class="column" '+(state.groupBy==='category'?'data-area="'+e(key)+'"':'data-status="'+e(key)+'"')+'><div class="column-head"><span>'+e(label)+'</span><b>'+items.length+'</b></div>'+ (items.map(taskCard).join('')||'<div class="empty">Nessuna attività qui.</div>')+'</section>';}).join('')||'<div class="empty">Nessuna attività corrisponde ai filtri.</div>'}</div>`;
+ return `<div class="board-view"><label>Raggruppa per <select id="group-tasks"><option value="category" ${state.groupBy==='category'?'selected':''}>Area di lavoro</option><option value="status" ${state.groupBy==='status'?'selected':''}>Stato di avanzamento</option></select></label><label class="hide-done"><input type="checkbox" id="hide-done" ${state.hideDone?'checked':''}> Nascondi completate</label><span>${tasks.length} attività visualizzate${state.hideDone?` · ${state.tasks.filter(t=>t.status==='done').length} completate nascoste`:''}</span></div><div class="filters"><input id="task-search" type="search" placeholder="Cerca un’attività…" aria-label="Cerca attività" value="${e(f.search)}"><select id="filter-category" aria-label="Filtra per area">${options(categoryOptions(),f.category,'Tutte le aree')}</select><select id="filter-assignee" aria-label="Filtra per responsabile">${options(owners,f.assignee,'Tutte le persone')}</select><select id="filter-phase" aria-label="Filtra per fase">${options(Object.fromEntries(Object.entries(PHASES).map(([k,v])=>[k,v.name])),f.phase,'Tutte le fasi')}</select><select id="filter-priority" aria-label="Filtra per priorità">${options(PRIORITIES,f.priority,'Tutte le priorità')}</select></div><div class="board ${state.groupBy==='category'?'board-areas':''}">${groups.map(([key,label])=>{const items=tasks.filter(t=>state.groupBy==='category'?(t.category||'unclassified')===key:t.status===key);if(state.groupBy==='category'&&!items.length)return '';return '<section class="column" '+(state.groupBy==='category'?'data-area="'+e(key)+'"':'data-status="'+e(key)+'"')+'><div class="column-head"><span>'+e(label)+'</span><b>'+items.length+'</b></div>'+ (items.map(taskCard).join('')||'<div class="empty">Nessuna attività qui.</div>')+'</section>';}).join('')||'<div class="empty">Nessuna attività corrisponde ai filtri.</div>'}</div>`;
 }
 function renderPhases(){return `<div class="note-strip" style="margin-top:0;margin-bottom:22px"><p>Calendario proposto nell’agenda. Le fasi successive dipendono da copertura finanziaria e tutele, non da una data già fissata.</p></div><div class="phases-list">${Object.entries(PHASES).map(([key,p],i)=>{const s=phaseStats(key);return `<article class="phase-card"><span class="phase-number">0${i+1}</span><div><span class="eyebrow">${e(p.period)}</span><h2>${e(p.name)}</h2><p>${e(p.description)}</p><button class="text-button" data-phase="${key}">Vedi le attività ↗</button></div><div><small>${s.done} di ${s.total} completate · ${s.percent}%</small><div class="bar"><span style="width:${s.percent}%"></span></div></div></article>`;}).join('')}</div>`;}
 function renderWiki(){
   const pages=state.files.filter(f=>!f.path.startsWith('attivita/')&&!f.path.startsWith('.')).sort((a,b)=>a.path.localeCompare(b.path));
   return `<div class="wiki-layout"><aside class="wiki-list"><input type="search" id="wiki-search" placeholder="Cerca una pagina…" aria-label="Cerca pagine" value="${e(state.wikiQuery)}">${pages.filter(f=>f.path.toLowerCase().includes(state.wikiQuery.toLowerCase())).map(f=>`<button data-doc="${e(f.path)}" class="${f.path===state.wikiPath?'active':''}">${e(f.path.split('/').pop().replace('.md','').replaceAll('-',' '))}<small>${e(f.path)}</small></button>`).join('')}</aside><article id="wiki-article" class="wiki-article"><div class="loading">Apertura pagina…</div></article></div>`;
 }
+function meetingFiles(){return state.files.filter(f=>/^riunioni\/[^/]+\.md$/.test(f.path)&&!/\/README\.md$/i.test(f.path)).sort((a,b)=>b.path.localeCompare(a.path));}
+function renderMeetings(){
+  const files=meetingFiles();if(!state.meetingPath||!files.some(f=>f.path===state.meetingPath))state.meetingPath=files[0]?.path||'';
+  return `<section class="panel calendar-panel"><div class="panel-head"><h2>Prossime chiamate</h2><button class="text-button" id="edit-calendar">Modifica calendario ↗</button></div><div id="calendar-list"><div class="loading">Leggo il calendario…</div></div></section><div class="section-title"><h2>Riassunti delle chiamate</h2></div><div class="wiki-layout"><aside class="wiki-list">${files.length?files.map(f=>`<button data-meeting="${e(f.path)}" class="${f.path===state.meetingPath?'active':''}">${e(meetingLabel(f.path))}<small>${e(f.path)}</small></button>`).join(''):'<div class="empty">Nessun riassunto ancora.</div>'}</aside><article id="meeting-article" class="wiki-article">${files.length?'<div class="loading">Apertura riassunto…</div>':'<div class="empty">I riassunti si aggiungono nella cartella riunioni/ della wiki.</div>'}</article></div>`;
+}
+const MONTHS=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+const WEEKDAYS=['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
+function longDate(iso){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||'');if(!m)return iso||'';const d=new Date(Date.UTC(+m[1],+m[2]-1,+m[3]));return `${WEEKDAYS[d.getUTCDay()]} ${+m[3]} ${MONTHS[+m[2]-1]} ${m[1]}`;}
+function meetingLabel(path){const name=path.split('/').pop().replace('.md','');const m=/^(\d{4}-\d{2}-\d{2})-?(.*)$/.exec(name);return m?`${longDate(m[1])}${m[2]?' · '+m[2].replaceAll('-',' '):''}`:name.replaceAll('-',' ');}
+function safeLink(url){try{const u=new URL(url);return u.protocol==='https:'?u.href:'';}catch{return '';}}
+function docFiles(){return state.files.filter(f=>/^docs\/[^/]+\.md$/.test(f.path)).sort((a,b)=>a.path==='docs/index.md'?-1:b.path==='docs/index.md'?1:a.path.localeCompare(b.path));}
+function docLabel(path){const n=path.split('/').pop().replace('.md','');return n==='index'?'Indice del dossier':(n.charAt(0).toUpperCase()+n.slice(1)).replace(/-\d{4}-\d{2}$/,'').replaceAll('-',' ');}
+function renderDocs(){
+  const files=docFiles();if(!state.docPath||!files.some(f=>f.path===state.docPath))state.docPath=files.find(f=>f.path!=='docs/index.md')?.path||files[0]?.path||'';
+  return `<div class="wiki-layout"><aside class="wiki-list">${files.length?files.map(f=>`<button data-docpage="${e(f.path)}" class="${f.path===state.docPath?'active':''}">${e(docLabel(f.path))}<small>${e(f.path)}</small></button>`).join(''):'<div class="empty">Nessun documento nella cartella docs/.</div>'}</aside><article id="docs-article" class="wiki-article"><div class="loading">Apertura documento…</div></article></div>`;
+}
+let docsRequest=0;
+async function loadDocs(){
+  const request=++docsRequest;
+  try{if(!state.docPath)return;const file=await readFile(state.docPath);if(request!==docsRequest||state.view!=='docs')return;const p=parseMarkdown(file.raw);$('#docs-article').innerHTML=`<div class="article-toolbar"><small>${e(file.path)}${p.meta.updated?' · aggiornato '+e(p.meta.updated):''}</small><button class="secondary" id="edit-docpage">Modifica</button></div><div class="markdown">${markdownHTML(p.body,file.path,state.repo)}</div>`;$('#edit-docpage').onclick=()=>openDoc(file);}
+  catch(err){const box=$('#docs-article');if(box)box.innerHTML=`<div class="empty">${e(errorText(err))}</div>`;}
+}
+let meetingRequest=0;
+async function loadMeetings(){
+  const request=++meetingRequest;
+  try{
+    const index=state.files.some(f=>f.path==='riunioni/README.md')?await readFile('riunioni/README.md'):null;
+    if(request!==meetingRequest||state.view!=='meetings')return;
+    const raw=index?parseMarkdown(index.raw).meta.calendar:[];
+    const items=(Array.isArray(raw)?raw:[]).filter(c=>c&&typeof c.date==='string'&&c.date>=today()).sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
+    $('#calendar-list').innerHTML=items.length?items.map(c=>{const link=safeLink(c.link);return `<div class="calendar-row"><div class="calendar-date"><strong>${e(longDate(c.date))}</strong><small>${e(c.time?'ore '+c.time:'orario da fissare')}</small></div><div class="calendar-body"><strong>${e(c.title||'Riunione')}</strong>${c.note?`<small>${e(c.note)}</small>`:''}</div>${link?`<a class="primary" href="${e(link)}" target="_blank" rel="noopener">Entra nella chiamata</a>`:'<span class="tag proposal">Link da aggiungere</span>'}</div>`;}).join(''):'<div class="empty">Nessuna chiamata in calendario. Aggiungila con «Modifica calendario».</div>';
+    $('#edit-calendar').onclick=async()=>{try{if(!index){toast('Manca riunioni/README.md nella wiki.');return;}openDoc(await readFile('riunioni/README.md',true));}catch(err){toast(errorText(err));}};
+    if(state.meetingPath){const file=await readFile(state.meetingPath);if(request!==meetingRequest||state.view!=='meetings')return;const p=parseMarkdown(file.raw);$('#meeting-article').innerHTML=`<div class="article-toolbar"><small>${e(file.path)}</small><button class="secondary" id="edit-meeting">Modifica riassunto</button></div><div class="markdown">${markdownHTML(p.body,file.path,state.repo)}</div>`;$('#edit-meeting').onclick=()=>openDoc(file);}
+  }catch(err){const box=$('#meeting-article')||$('#calendar-list');if(box)box.innerHTML=`<div class="empty">${e(errorText(err))}</div>`;}
+}
 let wikiRequest=0;
 async function loadWiki(){const request=++wikiRequest;try{const file=await readFile(state.wikiPath);if(request!==wikiRequest||state.view!=='wiki')return;const p=parseMarkdown(file.raw);$('#wiki-article').innerHTML=`<div class="article-toolbar"><small>${e(file.path)}</small><button class="secondary" id="edit-doc">Modifica pagina</button></div><div class="markdown">${markdownHTML(p.body,file.path,state.repo)}</div>`;$('#edit-doc').onclick=()=>openDoc(file);}catch(err){if($('#wiki-article'))$('#wiki-article').innerHTML=`<div class="empty">${e(errorText(err))}</div>`;}}
 function render(){
   if(!state.user)return;
   disposeGraph?.();disposeGraph=null;
-  const titles={graph:['LA MAPPA DEL PROGETTO','Le idee, collegate.','Esplora pagine, attività e relazioni nella wiki condivisa.'],overview:['IL NOSTRO PROGETTO','Facciamo spazio alle idee.','La direzione è comune. Il prossimo passo è concreto.'],board:['DAL PIANO ALL’AZIONE','Il lavoro, un passo alla volta.','Priorità chiare, responsabilità condivise e nessun pezzo perso.'],phases:['LA STRADA DAVANTI','Una direzione, cinque fasi.','Dall’ascolto al primo pilota. Con il tempo necessario per farlo bene.'],wiki:['LA NOSTRA CONOSCENZA','Quello che sappiamo, insieme.','Le stesse pagine che leggete e aggiornate con i vostri assistenti AI.']};
+  const titles={graph:['LA MAPPA DEL PROGETTO','Le idee, collegate.','Esplora pagine, attività e relazioni nella wiki condivisa.'],overview:['IL NOSTRO PROGETTO','Facciamo spazio alle idee.','La direzione è comune. Il prossimo passo è concreto.'],board:['DAL PIANO ALL’AZIONE','Il lavoro, un passo alla volta.','Priorità chiare, responsabilità condivise e nessun pezzo perso.'],phases:['LA STRADA DAVANTI','Una direzione, cinque fasi.','Dall’ascolto al primo pilota. Con il tempo necessario per farlo bene.'],docs:['RICERCHE E DOSSIER','I nostri documenti.','Studi, dati, casi simili e analisi raccolti per Held.'],meetings:['CI SENTIAMO OGNI SETTIMANA','Le nostre chiamate.','Il calendario con il link per entrare e il riassunto di ogni chiamata.'],wiki:['LA NOSTRA CONOSCENZA','Quello che sappiamo, insieme.','Le stesse pagine che leggete e aggiornate con i vostri assistenti AI.']};
   const [eyebrow,title,description]=titles[state.view];$('#page-eyebrow').textContent=eyebrow;$('#page-title').textContent=title;$('#page-description').textContent=description;
-  $('#breadcrumb').textContent='Held / '+({overview:'Panoramica',board:'Attività',phases:'Fasi di lavoro',wiki:'Wiki',graph:'Grafo'}[state.view]);$('#task-count').textContent=state.tasks.filter(t=>t.status!=='done').length;
+  $('#breadcrumb').textContent='Held / '+({overview:'Panoramica',board:'Attività',phases:'Fasi di lavoro',meetings:'Riunioni',docs:'Documenti',wiki:'Wiki',graph:'Grafo'}[state.view]);$('#task-count').textContent=state.tasks.filter(t=>t.status!=='done').length;
   document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===state.view));
-  $('#content').innerHTML=(state.errors?.length?`<div class="warning-banner">${state.errors.map(e).join('<br>')}<br>Correggi i metadati nella wiki. Le altre attività sono disponibili.</div>`:'')+({overview:renderOverview,board:renderBoard,phases:renderPhases,wiki:renderWiki,graph:renderGraph}[state.view])();
+  $('#content').innerHTML=(state.errors?.length?`<div class="warning-banner">${state.errors.map(e).join('<br>')}<br>Correggi i metadati nella wiki. Le altre attività sono disponibili.</div>`:'')+({overview:renderOverview,board:renderBoard,phases:renderPhases,wiki:renderWiki,graph:renderGraph,meetings:renderMeetings,docs:renderDocs}[state.view])();
+  if(state.view==='meetings')loadMeetings();
+  if(state.view==='docs')loadDocs();
   if(state.view==='wiki')loadWiki();
   if(state.view==='graph')loadGraph();
   if(state.view==='phases'){
@@ -141,6 +178,7 @@ function render(){
   }
   $('#task-search')?.addEventListener('input',event=>{const pos=event.target.selectionStart;state.filter.search=event.target.value;render();$('#task-search').focus();$('#task-search').setSelectionRange(pos,pos);});
   for(const key of ['assignee','phase','priority','category'])$('#filter-'+key)?.addEventListener('change',event=>{state.filter[key]=event.target.value;render();});
+  $('#hide-done')?.addEventListener('change',event=>{state.hideDone=event.target.checked;try{localStorage.setItem('held.hideDone',state.hideDone?'1':'0');}catch{}render();});
   $('#group-tasks')?.addEventListener('change',event=>{state.groupBy=event.target.value;render();});
   $('#wiki-search')?.addEventListener('input',event=>{const pos=event.target.selectionStart;state.wikiQuery=event.target.value;render();$('#wiki-search').focus();$('#wiki-search').setSelectionRange(pos,pos);});
 }
@@ -202,6 +240,8 @@ document.addEventListener('click',event=>{
   if(target.dataset.toggle){const t=state.tasks.find(t=>t.path===target.dataset.toggle);updateStatus(t.path,t.status==='done'?'todo':'done');}
   if(target.dataset.phase){state.filter.phase=target.dataset.phase;navigate('board');}
   if(target.dataset.doc){state.wikiPath=target.dataset.doc;render();}
+  if(target.dataset.docpage){state.docPath=target.dataset.docpage;render();}
+  if(target.dataset.meeting){state.meetingPath=target.dataset.meeting;render();}
 });
 document.addEventListener('change',event=>{if(event.target.dataset.statusTask)updateStatus(event.target.dataset.statusTask,event.target.value);if(event.target.dataset.check){const input=$('#editor-form [name=body]');input.value=toggleCheck(input.value,Number(event.target.dataset.check),event.target.checked);}});
 window.addEventListener('beforeunload',event=>{if(state.editor&&editorSnapshot()!==state.editor.initial){event.preventDefault();event.returnValue='';}});
