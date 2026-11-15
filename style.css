@@ -182,3 +182,8 @@ h1{font-weight:750;letter-spacing:-1px}h2,h3{font-weight:700}
 .hm-row{cursor:pointer}.hm-row:hover td{background:var(--light)}
 .hm-sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
 @media (max-width:1000px){.hm-main{grid-template-columns:1fr}.hm-tables{grid-template-columns:1fr}}
+
+/* Nomi delle persone: solo grassetto nero, senza colori (richiesta del 15/11/2026). */
+.person-chip{background:none!important;color:var(--ink)!important;padding:0!important;font-weight:800;font-size:15px}.person-chip small{color:var(--muted)!important;opacity:1}
+.task-row small .person-chip{font-size:12px;padding:0!important}
+.owner-choice{color:var(--ink)!important;border:1px solid var(--line)!important;font-weight:800!important}.owner-choice:hover,.owner-choice[aria-pressed=true]{background:var(--light)!important;color:var(--ink)!important}
