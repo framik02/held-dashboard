@@ -8,12 +8,14 @@ import {randomBytes} from 'node:crypto';
 const root=path.dirname(fileURLToPath(import.meta.url));
 const port=Number(process.env.PORT||4173),repo=process.env.HELD_REPO||'framik02/held-wiki';
 const nonce=randomBytes(32).toString('hex');
-const assets=new Map([['/','index.html'],['/index.html','index.html'],['/app.js','app.js'],['/core.js','core.js'],['/style.css','style.css'],['/icon.svg','icon.svg'],['/auth-config.json','auth-config.json'],['/graph.js','graph.js'],['/fonts/manrope-variable.ttf','fonts/manrope-variable.ttf']]);
+const assets=new Map([['/','index.html'],['/index.html','index.html'],['/app.js','app.js'],['/core.js','core.js'],['/style.css','style.css'],['/icon.svg','icon.svg'],['/auth-config.json','auth-config.json'],['/graph.js','graph.js'],['/mappa.js','mappa.js'],['/vendor/d3.min.js','vendor/d3.min.js'],['/vendor/topojson.min.js','vendor/topojson.min.js'],['/fonts/manrope-variable.ttf','fonts/manrope-variable.ttf']]);
 const mime={'.json':'application/json; charset=utf-8','.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.ttf':'font/ttf'};
 const gh=process.platform==='win32'?'gh.exe':'gh';
 function respond(res,status,data,type='application/json') {res.writeHead(status,{'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Cross-Origin-Resource-Policy':'same-origin','X-Frame-Options':'DENY'});res.end(type==='application/json'?JSON.stringify(data):data);}
 export function allowedEndpoint(endpoint,method,repository){
   if(method==='GET'&&(endpoint==='/user'||endpoint===`/repos/${repository}`||endpoint===`/repos/${repository}/git/trees/main?recursive=1`))return true;
+  const blobs=`/repos/${repository}/git/blobs/`;
+  if(method==='GET'&&endpoint.startsWith(blobs)&&/^[0-9a-f]{40}$/.test(endpoint.slice(blobs.length)))return true;
   const prefix=`/repos/${repository}/contents/`;
   if(!endpoint.startsWith(prefix)||!['GET','PUT','DELETE'].includes(method))return false;
   let p;try{p=decodeURIComponent(endpoint.slice(prefix.length).split('?')[0]);}catch{return false;}

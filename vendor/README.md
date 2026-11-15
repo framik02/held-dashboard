@@ -1,0 +1,1 @@
+d3 7.9.0 (ISC, https://github.com/d3/d3/blob/main/LICENSE) e topojson 3.0.2 (BSD-3-Clause, https://github.com/topojson/topojson/blob/master/LICENSE.md), copiati da cdnjs il 15 novembre 2026 perché la CSP della dashboard ammette solo script dello stesso sito.

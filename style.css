@@ -123,3 +123,62 @@ h1{font-weight:750;letter-spacing:-1px}h2,h3{font-weight:700}
 .danger{padding:12px 16px;min-height:44px;border-radius:9px;font-weight:700;background:#fff;color:#9b2c22;border:1px solid #e3b5ae}.danger:hover{background:#fbecea}.danger:disabled{opacity:.6}
 @media(max-width:720px){.dialog-footer #delete-task{order:3;width:100%}}
 .owner-choice{color:var(--p)!important;border:2px solid var(--p)!important;background:#fff!important;font-weight:800!important}.owner-choice:hover,.owner-choice[aria-pressed=true]{background:var(--p)!important;color:#fff!important}
+
+/* Vista Mappa dei comuni (mappa.js). Stesso impianto della pagina approvata il 15/11/2026, solo tema chiaro. */
+.held-map{display:grid;gap:18px;font-variant-numeric:tabular-nums}
+.hm-controls{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:end;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.hm-field{display:grid;gap:4px;min-width:0;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+.hm-field select,.hm-field input{font:500 14px var(--font);letter-spacing:0;text-transform:none;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:40px;max-width:100%}
+.hm-seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--bg)}
+.hm-seg button{font:600 13px var(--font);letter-spacing:0;text-transform:none;color:#4d6680;background:transparent;padding:9px 13px;min-height:40px}
+.hm-seg button[aria-pressed=true]{background:var(--primary);color:#fff}
+.hm-search{position:relative;flex:1 1 200px}.hm-search input{width:100%}
+.hm-method{align-self:end}
+#hm-suggest{position:absolute;z-index:5;top:100%;left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:8px;margin-top:4px;max-height:240px;overflow:auto;box-shadow:0 8px 24px #18324d1f}
+#hm-suggest button{display:block;width:100%;text-align:left;background:transparent;color:var(--ink);font:500 14px var(--font);letter-spacing:0;text-transform:none;padding:8px 10px}
+#hm-suggest button:hover,#hm-suggest button:focus{background:var(--light)}
+#hm-suggest small{color:var(--muted);margin-left:6px}
+.hm-main{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(320px,1fr);gap:18px;align-items:start}
+.hm-mapbox{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;position:relative;min-width:0}
+#hm-map{width:100%;height:auto;display:block;aspect-ratio:1/1.08}
+#hm-map path.hm-u{stroke:#fff;stroke-width:.15;cursor:pointer}
+@media (prefers-reduced-motion:no-preference){#hm-map path.hm-u{transition:fill .25s}}
+#hm-map path.hm-hot{stroke:#18324d!important;stroke-width:1.2!important}
+.hm-legend{display:grid;gap:4px;margin-top:8px}
+.hm-ramp{display:grid;grid-template-columns:repeat(7,1fr);height:12px;border-radius:3px;overflow:hidden;gap:2px;background:#fff}
+.hm-ticks{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+.hm-cap{font-size:12px;color:#4d6680}
+#hm-tip{position:absolute;pointer-events:none;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;box-shadow:0 6px 20px #18324d26;max-width:240px;z-index:4}
+#hm-tip b{display:block;font-size:14px}#hm-tip span{font-size:12px;color:#4d6680}
+.hm-side{display:grid;gap:14px;min-width:0}
+.hm-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+.hm-card h2{font-size:20px;margin:6px 0 0;letter-spacing:-.4px;line-height:1.2}
+.hm-card h3{font-size:13px;margin:0 0 8px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+.hm-score{display:flex;align-items:baseline;gap:10px;margin:8px 0 2px}
+.hm-score strong{font-size:44px;font-weight:700;line-height:1;letter-spacing:-2px}
+.hm-chip{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:#4d6680}
+.hm-sub{color:#4d6680;font-size:13px;margin:0}
+.hm-dims{display:grid;gap:7px;margin-top:12px}
+.hm-dim{display:grid;grid-template-columns:minmax(0,9.5em) 1fr 3.2em;gap:8px;align-items:center;font-size:13px}
+.hm-dim small{color:var(--muted)}.hm-dim b{font-size:12px;font-weight:600;text-align:right}
+.hm-bar{height:8px;background:#e6e8e4;border-radius:4px;overflow:hidden}.hm-bar i{display:block;height:100%;background:var(--primary);border-radius:4px}
+.hm-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;margin:14px 0 0}
+.hm-facts dt{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.hm-facts dd{margin:0;font-size:15px;font-weight:600}.hm-facts dd small{color:var(--muted);font-size:11px;font-weight:500}
+#hm-chart{width:100%;height:auto;display:block;overflow:visible}
+#hm-chart .hm-grid{stroke:var(--line)}#hm-chart text{fill:var(--muted);font:500 11px var(--font)}#hm-chart .hm-lab{font:700 12px var(--font);fill:#4d6680}
+.hm-chart-legend{display:flex;gap:14px;font-size:12px;color:#4d6680;flex-wrap:wrap;margin-top:4px}
+.hm-chart-legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.hm-ctx{display:grid;gap:6px;font-size:13px}
+.hm-ctx div{display:flex;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding-top:6px}
+.hm-ctx b{font-weight:600;white-space:nowrap}.hm-ctx small{color:var(--muted);font-weight:500}
+.hm-tables{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.hm-tablebox{overflow-x:auto}
+.hm-tables table{border-collapse:collapse;width:100%;font-size:13px}
+.hm-tables caption{text-align:left;font-weight:700;padding:0 8px 6px}
+.hm-tables th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line)}
+.hm-tables td{padding:6px 8px;border-bottom:1px solid var(--line)}
+.hm-tables .hm-n{text-align:right}.hm-tables small{color:var(--muted)}
+.hm-row{cursor:pointer}.hm-row:hover td{background:var(--light)}
+.hm-sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+@media (max-width:1000px){.hm-main{grid-template-columns:1fr}.hm-tables{grid-template-columns:1fr}}

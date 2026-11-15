@@ -1,4 +1,5 @@
 import {buildGraph,mountGraph} from './graph.js';
+import {loadMapLibraries,mountMap} from './mappa.js';
 import {CATEGORIES,categoryLabel,STATUSES,PRIORITIES,PHASES,escapeHTML as e,parseMarkdown,serializeMarkdown,toTask,checklist,toggleCheck,addComment,encode64,decode64,markdownHTML,fileURL} from './core.js';
 const $=s=>document.querySelector(s);
 const state={repo:'framik02/held-wiki',token:'',oauth:false,csrf:'',local:false,nonce:'',user:null,tasks:[],files:[],cache:new Map(),view:'overview',groupBy:'category',filter:{search:'',assignee:'',phase:'',priority:'',category:''},loading:false,saving:false,editor:null,wikiPath:'stato.md',meetingPath:'',docPath:'',hideDone:(()=>{try{return localStorage.getItem('held.hideDone')!=='0';}catch{return true;}})(),wikiQuery:'',lastHead:'',poll:null,session:0};
@@ -94,7 +95,7 @@ async function refresh(silent=false){
     if(session!==state.session)return;
     if(tree.truncated)throw new Error('Indice GitHub incompleto: apri il repository per consultare tutti i file.');
     if(tree.sha!==state.lastHead||!silent){
-      state.files=tree.tree.filter(f=>f.type==='blob'&&f.path.endsWith('.md'));
+      state.files=tree.tree.filter(f=>f.type==='blob'&&f.path.endsWith('.md'));state.dataFiles=tree.tree.filter(f=>f.type==='blob'&&/^dati\/[^/]+\/[^/]+\.json$/.test(f.path));
       if(state.files.some(f=>f.path==='attivita/README.md')){
         const config=parseMarkdown((await readFile('attivita/README.md')).raw).meta.phases;
         if(config&&typeof config==='object')for(const [key,p] of Object.entries(config)){
@@ -193,15 +194,16 @@ async function loadWiki(){const request=++wikiRequest;try{const file=await readF
 function render(){
   if(!state.user)return;
   disposeGraph?.();disposeGraph=null;
-  const titles={graph:['LA MAPPA DEL PROGETTO','Le idee, collegate.','Esplora pagine, attività e relazioni nella wiki condivisa.'],overview:['IL NOSTRO PROGETTO','Facciamo spazio alle idee.','La direzione è comune. Il prossimo passo è concreto.'],board:['DAL PIANO ALL’AZIONE','Il lavoro, un passo alla volta.','Priorità chiare, responsabilità condivise e nessun pezzo perso.'],phases:['LA STRADA DAVANTI','Una direzione, cinque fasi.','Dall’ascolto al primo pilota. Con il tempo necessario per farlo bene.'],docs:['RICERCHE E DOSSIER','I nostri documenti.','Studi, dati, casi simili e analisi raccolti per Held.'],meetings:['CI SENTIAMO OGNI SETTIMANA','Le nostre chiamate.','Il calendario con il link per entrare e il riassunto di ogni chiamata.'],wiki:['LA NOSTRA CONOSCENZA','Quello che sappiamo, insieme.','Le stesse pagine che leggete e aggiornate con i vostri assistenti AI.']};
+  const titles={map:['I TERRITORI','Dove portare Held.','Indice esplorativo e sostegno ai genitori per i 7.896 comuni italiani, con le medie di regioni e aree.'],graph:['LA MAPPA DEL PROGETTO','Le idee, collegate.','Esplora pagine, attività e relazioni nella wiki condivisa.'],overview:['IL NOSTRO PROGETTO','Facciamo spazio alle idee.','La direzione è comune. Il prossimo passo è concreto.'],board:['DAL PIANO ALL’AZIONE','Il lavoro, un passo alla volta.','Priorità chiare, responsabilità condivise e nessun pezzo perso.'],phases:['LA STRADA DAVANTI','Una direzione, cinque fasi.','Dall’ascolto al primo pilota. Con il tempo necessario per farlo bene.'],docs:['RICERCHE E DOSSIER','I nostri documenti.','Studi, dati, casi simili e analisi raccolti per Held.'],meetings:['CI SENTIAMO OGNI SETTIMANA','Le nostre chiamate.','Il calendario con il link per entrare e il riassunto di ogni chiamata.'],wiki:['LA NOSTRA CONOSCENZA','Quello che sappiamo, insieme.','Le stesse pagine che leggete e aggiornate con i vostri assistenti AI.']};
   const [eyebrow,title,description]=titles[state.view];$('#page-eyebrow').textContent=eyebrow;$('#page-title').textContent=title;$('#page-description').textContent=description;
-  $('#breadcrumb').textContent='Held / '+({overview:'Panoramica',board:'Attività',phases:'Fasi di lavoro',meetings:'Riunioni',docs:'Documenti',wiki:'Wiki',graph:'Grafo'}[state.view]);$('#task-count').textContent=state.tasks.filter(t=>t.status!=='done').length;
+  $('#breadcrumb').textContent='Held / '+({overview:'Panoramica',board:'Attività',phases:'Fasi di lavoro',meetings:'Riunioni',docs:'Documenti',wiki:'Wiki',graph:'Grafo',map:'Mappa'}[state.view]);$('#task-count').textContent=state.tasks.filter(t=>t.status!=='done').length;
   document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===state.view));
-  $('#content').innerHTML=(state.errors?.length?`<div class="warning-banner">${state.errors.map(e).join('<br>')}<br>Correggi i metadati nella wiki. Le altre attività sono disponibili.</div>`:'')+({overview:renderOverview,board:renderBoard,phases:renderPhases,wiki:renderWiki,graph:renderGraph,meetings:renderMeetings,docs:renderDocs}[state.view])();
+  $('#content').innerHTML=(state.errors?.length?`<div class="warning-banner">${state.errors.map(e).join('<br>')}<br>Correggi i metadati nella wiki. Le altre attività sono disponibili.</div>`:'')+({overview:renderOverview,board:renderBoard,phases:renderPhases,wiki:renderWiki,graph:renderGraph,map:renderMap,meetings:renderMeetings,docs:renderDocs}[state.view])();
   if(state.view==='meetings')loadMeetings();
   if(state.view==='docs')loadDocs();
   if(state.view==='wiki')loadWiki();
   if(state.view==='graph')loadGraph();
+  if(state.view==='map')loadMap();
   if(state.view==='phases'){
     const button=document.createElement('button');button.className='secondary';button.style.marginTop='18px';button.textContent='Modifica nomi e calendario delle fasi';button.onclick=async()=>{try{openDoc(await readFile('attivita/README.md',true));}catch(err){toast(errorText(err));}};$('#content').append(button);
   }
@@ -278,6 +280,24 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh(tr
 if(['localhost','127.0.0.1'].includes(location.hostname))fetch('/api/config').then(r=>r.json()).then(config=>{if(config.local){state.nonce=config.nonce;$('#local-login').hidden=false;$('#login-form [name=repo]').value=config.repo;connect(true);}}).catch(()=>{});
 
 let graphRequest=0;
+// Mappa dei comuni: i dati stanno nella wiki privata, in dati/<cartella>/dati.json e comuni.topo.json.
+const blobCache=new Map();let mapRequest=0;
+async function readJSONBlob(file){if(blobCache.has(file.sha))return blobCache.get(file.sha);
+  const blob=await api(`/repos/${state.repo}/git/blobs/${file.sha}`);if(blob.encoding!=='base64')throw new Error('Formato inatteso per '+file.path);
+  const value=JSON.parse(decode64(blob.content));blobCache.clear();blobCache.set(file.sha,value);return value;}
+function renderMap(){return '<div id="map-container"><div class="loading">Carico confini e dati dei comuni dalla wiki…</div></div>';}
+async function loadMap(){
+  const request=++mapRequest,session=state.session;const host=()=>$('#map-container');
+  const sets=[...new Set((state.dataFiles||[]).filter(f=>f.path.endsWith('/dati.json')).map(f=>f.path.split('/')[1]))].sort();
+  const folder=sets.pop();const dataFile=state.dataFiles?.find(f=>f.path===`dati/${folder}/dati.json`),topoFile=state.dataFiles?.find(f=>f.path===`dati/${folder}/comuni.topo.json`);
+  if(!dataFile||!topoFile){host().innerHTML='<div class="empty">Nella wiki mancano i dati della mappa: servono dati/&lt;cartella&gt;/dati.json e comuni.topo.json.</div>';return;}
+  try{
+    const [topo,data]=await Promise.all([readJSONBlob(topoFile),readJSONBlob(dataFile),loadMapLibraries()]).then(([t,d])=>[t,d]);
+    if(state.view!=='map'||request!==mapRequest||session!==state.session||!host())return;
+    const method=state.files.find(f=>/^docs\/mappa-indice-comuni[^/]*\.md$/.test(f.path));
+    mountMap(host(),topo,data,{onMethod:method?()=>{state.wikiPath=method.path;navigate('wiki');}:null});
+  }catch(err){if(host())host().innerHTML=`<div class="empty">Mappa non disponibile: ${e(errorText(err))} Premi aggiorna per riprovare.</div>`;}
+}
 function renderGraph(){return '<div id="graph-container"><div class="loading">Collego le pagine della wiki…</div></div>';}
 async function loadGraph(){
   const request=++graphRequest,session=state.session;const pages=state.files.filter(f=>!f.path.startsWith('.'));const files=[],errors=[];

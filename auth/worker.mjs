@@ -16,6 +16,8 @@ function configured(env){return !!env.GITHUB_CLIENT_ID&&!!env.GITHUB_CLIENT_SECR
 function equal(a,b){if(typeof a!=='string'||typeof b!=='string'||a.length!==b.length)return false;let difference=0;for(let i=0;i<a.length;i++)difference|=a.charCodeAt(i)^b.charCodeAt(i);return difference===0;}
 export function allowed(endpoint,method,repo){
  if(method==='GET'&&['/user',`/repos/${repo}`,`/repos/${repo}/git/trees/main?recursive=1`].includes(endpoint))return true;
+ // Lettura dei file di dati della mappa (JSON oltre 1 MB) tramite il loro SHA.
+ if(method==='GET'&&endpoint.startsWith(`/repos/${repo}/git/blobs/`)&&/^[0-9a-f]{40}$/.test(endpoint.slice(`/repos/${repo}/git/blobs/`.length)))return true;
  const prefix=`/repos/${repo}/contents/`;if(!endpoint.startsWith(prefix)||!['GET','PUT','DELETE'].includes(method))return false;
  const [raw,query]=endpoint.slice(prefix.length).split('?');if(query&&(method!=='GET'||query!=='ref=main'))return false;
  let p;try{p=decodeURIComponent(raw);}catch{return false;}
