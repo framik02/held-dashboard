@@ -214,3 +214,27 @@ h1{font-weight:750;letter-spacing:-1px}h2,h3{font-weight:700}
 .chat-dot{width:8px;height:8px;border-radius:50%;background:var(--red);margin-left:auto;padding:0!important;min-width:0!important}
 @media(max-width:720px){.attach-row{grid-template-columns:auto minmax(0,1fr) auto;padding:12px 16px}.attach-row .danger-text{grid-column:2/4;justify-self:start;padding:0}.attach-panel .panel-head{flex-direction:column}.chat-msg{max-width:90%}.chat-log{height:max(280px,calc(100vh - 470px));padding:12px}}
 .chat-dot[hidden]{display:none!important}
+
+/* Mappa: zoom e partner potenziali (23/11/2026). */
+#hm-map{cursor:grab;touch-action:none}#hm-map:active{cursor:grabbing}
+.hm-zoom{position:absolute;top:20px;right:20px;z-index:2;display:flex;flex-direction:column;gap:6px}
+.hm-zoom button{min-width:40px;height:40px;padding:0 10px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);font-weight:800;font-size:16px;box-shadow:0 1px 3px rgba(24,50,77,.12)}
+.hm-zoom button#hm-zsel,.hm-zoom button#hm-zreset{font-size:12px}
+.hm-zoom button:hover{border-color:var(--primary)}
+.hm-pin{cursor:pointer;outline:none}.hm-pin:focus circle{stroke:#18324d}
+.hm-cluster{cursor:pointer}.hm-cluster text{fill:#fff;font-size:13px;font-weight:800;pointer-events:none}
+.hm-pinlegend{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.hm-pinlab{font-size:12px;font-weight:800;color:var(--ink);margin-right:4px}
+.hm-pinlegend button{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border:1px solid var(--line);border-radius:20px;background:#fff;color:var(--ink);font-size:12px;font-weight:600}
+.hm-pinlegend button[aria-pressed=false]{opacity:.45;text-decoration:line-through}
+.hm-pinlegend small{color:var(--muted)}
+.hm-dot{display:inline-block;width:11px;height:11px;border-radius:50%;box-shadow:0 0 0 2px #fff,0 0 0 3px rgba(24,50,77,.25);flex:none}
+.hm-partner h2{font-size:19px}
+.hm-partner-head{display:flex;justify-content:space-between;align-items:center}
+.hm-pintag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--ink)}.hm-pintag::before{content:"";width:11px;height:11px;border-radius:50%;background:var(--c)}
+.hm-close{background:none;border:0;color:var(--muted);font-size:15px;padding:6px;cursor:pointer}
+.hm-pfacts{display:grid;gap:8px;margin:12px 0}.hm-pfacts dt{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px}.hm-pfacts dd{margin:2px 0 0;font-size:14px;color:var(--ink);overflow-wrap:anywhere}
+.hm-plist{display:grid;gap:4px;margin-top:8px}
+.hm-plist summary{cursor:pointer;display:flex;align-items:center;gap:8px;padding:7px 4px;font-weight:700;font-size:13px;color:var(--ink)}.hm-plist summary small{color:var(--muted);font-weight:600}
+.hm-plist button{display:block;width:100%;text-align:left;background:none;border:0;border-radius:7px;padding:6px 8px 6px 27px;font-size:13px;color:var(--ink);cursor:pointer}.hm-plist button:hover:not(:disabled){background:var(--light)}.hm-plist button:disabled{color:var(--muted);cursor:default}
+@media(max-width:720px){.hm-zoom{top:16px;right:16px}.hm-zoom button{min-width:36px;height:36px}}

@@ -29,6 +29,8 @@ export const MAP_INDICATORS=[
   {k:'np',label:'Non profit ogni 10.000 abitanti (prov.)',unit:'organizzazioni',d:1},
   {k:'occf',label:'Occupazione femminile 20-64 (prov.)',unit:'%',d:1},
 ];
+export const PIN_COLORS={centro:'#245b93',rione:'#c2410c',ente:'#6b4fb3',scuola:'#0e7490',volontariato:'#b8417a',chiesa:'#8a6d1d',finanziatore:'#1f2937'};
+const PIN_ORDER=['centro','rione','ente','scuola','volontariato','chiesa','finanziatore'];
 const DIMS=[['bisogno','Bisogno'],['partner','Partner e sedi'],['bacino','Bacino'],['mobilita','Mobilità']];
 const NUTS06={1:'ITC1',2:'ITC2',3:'ITC4',5:'ITD3',6:'ITD4',7:'ITC3',8:'ITD5',9:'ITE1',10:'ITE2',11:'ITE3',12:'ITE4',13:'ITF1',14:'ITF2',15:'ITF3',16:'ITF4',17:'ITF5',18:'ITF6',19:'ITG1',20:'ITG2'};
 
@@ -41,11 +43,11 @@ export function aggregate(comuni,ind,g,avg){
   const out=new Map();for(const [k,a] of acc)out.set(k,{v:a.s/a.w,n:a.n,pop:a.pop});return out;
 }
 
-export function mountMap(host,topo,data,{onMethod}={}){
+export function mountMap(host,topo,data,{onMethod,partners}={}){
   const d3=window.d3,topojson=window.topojson;
   const byCode=new Map(data.comuni.map(c=>[c.c,c]));
   const W=data.pesi||{};
-  const state={ind:'idx',gran:'c',avg:'s',sel:'054018'};
+  const state={ind:'idx',gran:'c',avg:'s',sel:'054018',hide:[]};
   try{Object.assign(state,JSON.parse(localStorage.getItem('held-mappa')||'{}'));}catch{}
   if(!byCode.has(state.sel))state.sel=data.comuni[0].c;
   const save=()=>{try{localStorage.setItem('held-mappa',JSON.stringify(state));}catch{}};
@@ -60,8 +62,8 @@ export function mountMap(host,topo,data,{onMethod}={}){
     ${onMethod?'<button type="button" class="secondary hm-method" id="hm-method">Metodo e fonti ↗</button>':''}
    </div>
    <div class="hm-main">
-    <div class="hm-mapbox"><svg id="hm-map" role="img" aria-label="Mappa d'Italia colorata per comune"></svg><div id="hm-tip" hidden></div><div class="hm-legend" id="hm-legend"></div></div>
-    <aside class="hm-side"><section class="hm-card" id="hm-detail" aria-live="polite"></section>
+    <div class="hm-mapbox"><div class="hm-zoom" role="group" aria-label="Zoom della mappa"><button type="button" id="hm-zin" aria-label="Avvicina">+</button><button type="button" id="hm-zout" aria-label="Allontana">−</button><button type="button" id="hm-zsel">Selezione</button><button type="button" id="hm-zreset">Italia</button></div><svg id="hm-map" role="img" aria-label="Mappa d'Italia colorata per comune. Rotella o pizzico per lo zoom, trascina per spostarti."></svg><div id="hm-tip" hidden></div><div class="hm-legend" id="hm-legend"></div><div class="hm-pinlegend" id="hm-pins"></div></div>
+    <aside class="hm-side"><section class="hm-card hm-partner" id="hm-partner" hidden></section><section class="hm-card" id="hm-detail" aria-live="polite"></section>
      <section class="hm-card"><h3 id="hm-chart-title">Andamento della popolazione</h3><svg id="hm-chart" viewBox="0 0 420 210" role="img" aria-label="Grafico nel tempo"></svg><div class="hm-chart-legend" id="hm-chart-legend"></div><p class="hm-sub" id="hm-chart-note"></p></section>
      <section class="hm-card" id="hm-context"></section></aside>
    </div>
@@ -73,12 +75,13 @@ export function mountMap(host,topo,data,{onMethod}={}){
   const MW=900,MH=980;svg.attr('viewBox',`0 0 ${MW} ${MH}`);
   const proj=d3.geoIdentity().reflectY(true).fitSize([MW,MH],{type:'FeatureCollection',features:feats});
   const path=d3.geoPath(proj);
-  const gU=svg.append('g'),gB=svg.append('g').attr('pointer-events','none'),gH=svg.append('g').attr('pointer-events','none');
-  const units=gU.selectAll('path').data(feats).join('path').attr('class','hm-u').attr('d',path);
+  const gZ=svg.append('g');
+  const gU=gZ.append('g'),gB=gZ.append('g').attr('pointer-events','none'),gH=gZ.append('g').attr('pointer-events','none'),gP=gZ.append('g').attr('class','hm-pinlayer');
+  const units=gU.selectAll('path').data(feats).join('path').attr('class','hm-u').attr('d',path).attr('vector-effect','non-scaling-stroke');
   const mesh=f=>path(topojson.mesh(topo,topo.objects.comuni,f));
-  gB.append('path').attr('d',mesh((a,b)=>a===b)).attr('fill','none').attr('stroke','#7a8fa5').attr('stroke-width',.5);
-  const regPath=gB.append('path').attr('d',mesh((a,b)=>a.properties.COD_REG!==b.properties.COD_REG)).attr('fill','none').attr('stroke','#18324d').attr('stroke-opacity',.55).attr('stroke-width',.7);
-  gB.append('path').attr('d',mesh((a,b)=>a.properties.MACRO!==b.properties.MACRO)).attr('fill','none').attr('stroke','#18324d').attr('stroke-width',1.6);
+  gB.append('path').attr('d',mesh((a,b)=>a===b)).attr('fill','none').attr('stroke','#7a8fa5').attr('stroke-width',.5).attr('vector-effect','non-scaling-stroke');
+  const regPath=gB.append('path').attr('d',mesh((a,b)=>a.properties.COD_REG!==b.properties.COD_REG)).attr('fill','none').attr('stroke','#18324d').attr('stroke-opacity',.55).attr('stroke-width',.7).attr('vector-effect','non-scaling-stroke');
+  gB.append('path').attr('d',mesh((a,b)=>a.properties.MACRO!==b.properties.MACRO)).attr('fill','none').attr('stroke','#18324d').attr('stroke-width',1.6).attr('vector-effect','non-scaling-stroke');
 
   let curAgg,curInd,mid=0,ext=1,colorOf=()=>null;
   const groupName=(k,g)=>g==='c'?byCode.get(k)?.n:g==='r'?data.regioni[k]:MACRO[k];
@@ -110,7 +113,8 @@ export function mountMap(host,topo,data,{onMethod}={}){
     gH.selectAll('*').remove();const c=byCode.get(state.sel);const k=groupKey(c,state.gran);
     const shapes=state.gran==='c'?feats.filter(f=>f.properties.PRO_COM_T===state.sel)
       :[topojson.merge(topo,topo.objects.comuni.geometries.filter(g=>{const cc=byCode.get(g.properties.PRO_COM_T);return cc&&groupKey(cc,state.gran)===k;}))];
-    gH.selectAll('path').data(shapes).join('path').attr('d',path).attr('fill','none').attr('stroke','#18324d').attr('stroke-width',state.gran==='c'?2:2.2);
+    gH.selectAll('path').data(shapes).join('path').attr('d',path).attr('fill','none').attr('stroke','#18324d').attr('stroke-width',state.gran==='c'?2:2.2).attr('vector-effect','non-scaling-stroke');
+    return shapes;
   }
   function renderRank(){
     const arr=rankList(),n=arr.length,g=state.gran,lim=g==='m'?3:10;
@@ -178,7 +182,7 @@ export function mountMap(host,topo,data,{onMethod}={}){
       ${line('Aiuto diretto senza organizzazione (15+ anni, 2023)',code?vol(code,'DIRVOL'):null,vol('IT','DIRVOL'))}</div>
       <p class="hm-sub">Dati regionali ISTAT: valgono per tutta la regione, non per il singolo comune.</p>`;
   }
-  const choose=code=>{state.sel=code;renderDetail();highlight();save();};
+  const choose=(code,zoom=true)=>{state.sel=code;renderDetail();const shapes=highlight();save();renderPartnerList();if(zoom)zoomTo(shapes);};
   const tip=$('#hm-tip'),box=$('.hm-mapbox');
   units.on('pointermove',(ev,f)=>{const c=byCode.get(f.properties.PRO_COM_T);if(!c)return;const k=groupKey(c,state.gran),a=curAgg.get(k);
       tip.hidden=false;tip.innerHTML=`<b>${e(groupName(k,state.gran))}</b>${state.gran==='c'?`<span>${e(c.p)}</span><br>`:''}<span>${e(curInd.label)}: ${fmt(a?a.v:null,curInd.d)}</span>`;
@@ -196,6 +200,75 @@ export function mountMap(host,topo,data,{onMethod}={}){
     sug.innerHTML=hits.map(c=>`<button type="button" data-c="${e(c.c)}">${e(c.n)}<small>${e(c.p)}</small></button>`).join('')||'<button type="button" disabled>Nessun comune</button>';sug.hidden=false;};
   sug.onclick=ev=>{const b=ev.target.closest('button[data-c]');if(!b)return;ev.preventDefault();q.value='';sug.hidden=true;choose(b.dataset.c);};
   q.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();sug.querySelector('button[data-c]')?.click();}if(ev.key==='Escape')sug.hidden=true;};
-  render();
+  // Zoom e spostamento: rotella o pizzico, trascinamento, pulsanti.
+  const pinR=7;let k=1;
+  const zoom=d3.zoom().scaleExtent([1,900]).translateExtent([[-MW*.2,-MH*.2],[MW*1.2,MH*1.2]]).on('zoom',ev=>{k=ev.transform.k;gZ.attr('transform',ev.transform);placePins();});
+  svg.call(zoom).on('dblclick.zoom',null);
+  function zoomTo(shapes){
+    if(!shapes?.length)return;let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+    for(const f of shapes){const [[a,b],[c,d]]=path.bounds(f);x0=Math.min(x0,a);y0=Math.min(y0,b);x1=Math.max(x1,c);y1=Math.max(y1,d);}
+    const kk=Math.max(1,Math.min(400,.82/Math.max((x1-x0)/MW,(y1-y0)/MH)));
+    svg.transition().duration(650).call(zoom.transform,d3.zoomIdentity.translate(MW/2,MH/2).scale(kk).translate(-(x0+x1)/2,-(y0+y1)/2));
+  }
+  $('#hm-zin').onclick=()=>svg.transition().duration(300).call(zoom.scaleBy,2);
+  $('#hm-zout').onclick=()=>svg.transition().duration(300).call(zoom.scaleBy,.5);
+  $('#hm-zreset').onclick=()=>svg.transition().duration(500).call(zoom.transform,d3.zoomIdentity);
+  $('#hm-zsel').onclick=()=>zoomTo(highlight());
+
+  // Partner potenziali: un segnaposto per soggetto, colore per tipo; quelli nello stesso punto si aprono a ventaglio.
+  const P=(partners?.partner||[]).map((x,i)=>({...x,i}));const types=partners?.tipi||{};
+  const placed=P.filter(x=>x.x!=null&&x.y!=null).map(x=>{const [px,py]=proj([x.x,x.y]);return {...x,px,py};});
+  const groups=new Map();for(const x of placed){const key=Math.round(x.px*40)+'|'+Math.round(x.py*40);(groups.get(key)||groups.set(key,[]).get(key)).push(x);}
+  for(const g of groups.values())g.forEach((x,j)=>{if(g.length===1){x.ox=0;x.oy=0;return;}const a=j/g.length*2*Math.PI-Math.PI/2;const r=9+g.length*1.3;x.ox=Math.cos(a)*r;x.oy=Math.sin(a)*r;});
+  const pinTip=x=>`<b>${e(x.nome)}</b><span>${e(types[x.tipo]||x.tipo)}</span><br><span>${e(x.ruolo||'')}</span>`;
+  const pins=gP.selectAll('g').data(placed).join('g').attr('class','hm-pin').attr('tabindex',0).attr('role','button').attr('aria-label',x=>`${x.nome}, ${types[x.tipo]||x.tipo}`);
+  pins.append('line').attr('class','hm-pinstem').attr('vector-effect','non-scaling-stroke');
+  pins.append('circle').attr('fill',x=>PIN_COLORS[x.tipo]||'#1f2937').attr('stroke','#fff').attr('vector-effect','non-scaling-stroke').attr('stroke-width',2);
+  function placePins(){
+    const show=k>=6;gP.style('display',show?null:'none');cluster.style('display',show||!placed.length?'none':null);
+    if(!show){cluster.attr('transform',`translate(${cx},${cy}) scale(${1/k})`);return;}
+    pins.style('display',x=>state.hide.includes(x.tipo)?'none':null);
+    pins.select('circle').attr('cx',x=>x.px+x.ox/k).attr('cy',x=>x.py+x.oy/k).attr('r',x=>(x.sel?pinR+3:pinR)/k);
+    pins.select('line').attr('x1',x=>x.px).attr('y1',x=>x.py).attr('x2',x=>x.px+x.ox/k).attr('y2',x=>x.py+x.oy/k).attr('stroke','#18324d').attr('stroke-opacity',x=>x.ox?.5:0).attr('stroke-width',1);
+  }
+  // Da lontano i segnaposto diventano un unico cerchio con il numero: cliccandolo ci si avvicina.
+  const cx=placed.length?d3.mean(placed,x=>x.px):0,cy=placed.length?d3.mean(placed,x=>x.py):0;
+  const cluster=gZ.append('g').attr('class','hm-cluster').attr('role','button').attr('tabindex',0).attr('aria-label',`${placed.length} partner potenziali, avvicina`);
+  cluster.append('circle').attr('r',15).attr('fill','#18324d').attr('stroke','#fff').attr('stroke-width',2.5);
+  cluster.append('text').attr('text-anchor','middle').attr('dy','.35em').text(placed.length);
+  const zoomPins=()=>{const [x0,x1]=d3.extent(placed,x=>x.px),[y0,y1]=d3.extent(placed,x=>x.py);const pad=1.2;const kk=Math.min(400,.8/Math.max((x1-x0+pad)/MW,(y1-y0+pad)/MH));svg.transition().duration(650).call(zoom.transform,d3.zoomIdentity.translate(MW/2,MH/2).scale(kk).translate(-(x0+x1)/2,-(y0+y1)/2));};
+  cluster.on('click',zoomPins).on('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();zoomPins();}});
+  function showPartner(x){
+    placed.forEach(p=>p.sel=p===x);placePins();pins.filter(p=>p.sel).raise();
+    const box=$('#hm-partner');box.hidden=false;
+    box.innerHTML=`<div class="hm-partner-head"><span class="hm-pintag" style="--c:${PIN_COLORS[x.tipo]}">${e(types[x.tipo]||x.tipo)}</span><button type="button" class="hm-close" id="hm-pclose" aria-label="Chiudi scheda">✕</button></div>
+      <h2>${e(x.nome)}</h2>${x.indirizzo?`<p class="hm-sub">${e(x.indirizzo)}</p>`:''}
+      <dl class="hm-pfacts"><div><dt>Cosa può fare con Held</dt><dd>${e(x.ruolo||'Da definire')}</dd></div>${x.contatto?`<div><dt>Contatto pubblico</dt><dd>${e(x.contatto)}</dd></div>`:''}
+      <div><dt>Priorità proposta</dt><dd>${['','Alta','Media','Bassa'][x.priorita]||'Da definire'}</dd></div>
+      <div><dt>Posizione</dt><dd>${{edificio:'Edificio',via:'Via, non il numero civico',frazione:'Centro della frazione',nome:'Ricavata dal nome'}[x.precisione]||'Da verificare'}</dd></div></dl>
+      <p class="hm-sub">Fonte: ${/^https:/.test(x.fonte)?`<a href="${e(x.fonte)}" target="_blank" rel="noopener noreferrer">${e(new URL(x.fonte).hostname)}</a>`:e(x.fonte)}. ${e(partners.stato||'')}</p>
+      <button type="button" class="text-button" id="hm-plist">Tutti i partner di Foligno</button>`;
+    $('#hm-pclose').onclick=()=>{placed.forEach(p=>p.sel=false);placePins();box.hidden=true;renderPartnerList();};
+    $('#hm-plist').onclick=()=>{placed.forEach(p=>p.sel=false);placePins();renderPartnerList(true);};
+  }
+  function renderPartnerList(force=false){
+    const box=$('#hm-partner');if(!P.length){box.hidden=true;return;}
+    if(!force&&!(state.gran==='c'&&state.sel===partners.comune)){if(!placed.some(p=>p.sel))box.hidden=true;return;}
+    const by=PIN_ORDER.filter(t=>P.some(x=>x.tipo===t)).map(t=>[t,P.filter(x=>x.tipo===t)]);
+    box.hidden=false;
+    box.innerHTML=`<h3>Partner potenziali a Foligno</h3><p class="hm-sub">${P.length} soggetti, ${placed.length} sulla mappa. ${e(partners.stato||'')} Aggiornato al ${e(partners.aggiornato||'')}.</p>
+      <div class="hm-plist">${by.map(([t,list])=>`<details ${t==='centro'?'open':''}><summary><span class="hm-dot" style="background:${PIN_COLORS[t]}"></span>${e(types[t]||t)} <small>${list.length}</small></summary>${list.map(x=>`<button type="button" data-p="${x.i}" ${x.x==null?'disabled title="Indirizzo da trovare"':''}>${e(x.nome)}${x.x==null?' <small>senza indirizzo</small>':''}</button>`).join('')}</details>`).join('')}</div>`;
+    box.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{const x=placed.find(p=>p.i===+b.dataset.p);if(!x)return;showPartner(x);svg.transition().duration(650).call(zoom.transform,d3.zoomIdentity.translate(MW/2,MH/2).scale(Math.max(k,160)).translate(-x.px,-x.py));});
+  }
+  pins.on('pointermove',(ev,x)=>{const r=box.getBoundingClientRect();tip.hidden=false;tip.innerHTML=pinTip(x);let tx=ev.clientX-r.left+14;if(tx>r.width-250)tx-=270;tip.style.left=tx+'px';tip.style.top=(ev.clientY-r.top+14)+'px';})
+    .on('pointerleave',()=>{tip.hidden=true;})
+    .on('click',(ev,x)=>{ev.stopPropagation();showPartner(x);})
+    .on('keydown',(ev,x)=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();showPartner(x);}});
+  const legendPins=()=>{if(!placed.length){$('#hm-pins').innerHTML='';return;}
+    $('#hm-pins').innerHTML=`<span class="hm-pinlab">Partner potenziali a Foligno</span>${PIN_ORDER.filter(t=>placed.some(x=>x.tipo===t)).map(t=>`<button type="button" data-t="${t}" aria-pressed="${!state.hide.includes(t)}"><span class="hm-dot" style="background:${PIN_COLORS[t]}"></span>${e(types[t]||t)} <small>${placed.filter(x=>x.tipo===t).length}</small></button>`).join('')}`;
+    $('#hm-pins').querySelectorAll('button').forEach(b=>b.onclick=()=>{const t=b.dataset.t;state.hide=state.hide.includes(t)?state.hide.filter(x=>x!==t):[...state.hide,t];save();legendPins();placePins();});};
+  if(!Array.isArray(state.hide))state.hide=[];
+  legendPins();
+  render();renderPartnerList();placePins();
   return ()=>{host.innerHTML='';};
 }

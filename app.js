@@ -197,7 +197,7 @@ async function loadWiki(){const request=++wikiRequest;try{const file=await readF
 function render(){
   if(!state.user)return;
   disposeGraph?.();disposeGraph=null;clearInterval(state.chatPoll);state.chatPoll=null;
-  const titles={chat:['PARLIAMONE QUI','La chat del team.','Messaggi e file condivisi. Tutto resta nella wiki, nella cartella chat/.'],map:['I TERRITORI','Dove portare Held.','Indice esplorativo e sostegno ai genitori per i 7.896 comuni italiani, con le medie di regioni e aree.'],graph:['LA MAPPA DEL PROGETTO','Le idee, collegate.','Esplora pagine, attività e relazioni nella wiki condivisa.'],overview:['IL NOSTRO PROGETTO','Facciamo spazio alle idee.','La direzione è comune. Il prossimo passo è concreto.'],board:['DAL PIANO ALL’AZIONE','Il lavoro, un passo alla volta.','Priorità chiare, responsabilità condivise e nessun pezzo perso.'],phases:['LA STRADA DAVANTI','Una direzione, cinque fasi.','Dall’ascolto al primo pilota. Con il tempo necessario per farlo bene.'],docs:['RICERCHE E DOSSIER','I nostri documenti.','Studi, dati, casi simili e analisi raccolti per Held.'],meetings:['CI SENTIAMO OGNI SETTIMANA','Le nostre chiamate.','Il calendario con il link per entrare e il riassunto di ogni chiamata.'],wiki:['LA NOSTRA CONOSCENZA','Quello che sappiamo, insieme.','Le stesse pagine che leggete e aggiornate con i vostri assistenti AI.']};
+  const titles={chat:['PARLIAMONE QUI','La chat del team.','Messaggi e file condivisi. Tutto resta nella wiki, nella cartella chat/.'],map:['I TERRITORI','Dove portare Held.','Indice esplorativo e sostegno ai genitori per i 7.896 comuni italiani, con i partner potenziali di Foligno. Rotella o pizzico per avvicinarti, clic su un comune per centrarlo.'],graph:['LA MAPPA DEL PROGETTO','Le idee, collegate.','Esplora pagine, attività e relazioni nella wiki condivisa.'],overview:['IL NOSTRO PROGETTO','Facciamo spazio alle idee.','La direzione è comune. Il prossimo passo è concreto.'],board:['DAL PIANO ALL’AZIONE','Il lavoro, un passo alla volta.','Priorità chiare, responsabilità condivise e nessun pezzo perso.'],phases:['LA STRADA DAVANTI','Una direzione, cinque fasi.','Dall’ascolto al primo pilota. Con il tempo necessario per farlo bene.'],docs:['RICERCHE E DOSSIER','I nostri documenti.','Studi, dati, casi simili e analisi raccolti per Held.'],meetings:['CI SENTIAMO OGNI SETTIMANA','Le nostre chiamate.','Il calendario con il link per entrare e il riassunto di ogni chiamata.'],wiki:['LA NOSTRA CONOSCENZA','Quello che sappiamo, insieme.','Le stesse pagine che leggete e aggiornate con i vostri assistenti AI.']};
   const [eyebrow,title,description]=titles[state.view];$('#page-eyebrow').textContent=eyebrow;$('#page-title').textContent=title;$('#page-description').textContent=description;
   $('#breadcrumb').textContent='Held / '+({chat:'Chat',overview:'Panoramica',board:'Attività',phases:'Fasi di lavoro',meetings:'Riunioni',docs:'Documenti',wiki:'Wiki',graph:'Grafo',map:'Mappa'}[state.view]);$('#task-count').textContent=state.tasks.filter(t=>t.status!=='done').length;
   document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===state.view));
@@ -291,7 +291,7 @@ let graphRequest=0;
 const blobCache=new Map();let mapRequest=0;
 async function readJSONBlob(file){if(blobCache.has(file.sha))return blobCache.get(file.sha);
   const blob=await api(`/repos/${state.repo}/git/blobs/${file.sha}`);if(blob.encoding!=='base64')throw new Error('Formato inatteso per '+file.path);
-  const value=JSON.parse(decode64(blob.content));blobCache.clear();blobCache.set(file.sha,value);return value;}
+  const value=JSON.parse(decode64(blob.content));if(blobCache.size>=4)blobCache.delete(blobCache.keys().next().value);blobCache.set(file.sha,value);return value;}
 function renderMap(){return '<div id="map-container"><div class="loading">Carico confini e dati dei comuni dalla wiki…</div></div>';}
 async function loadMap(){
   const request=++mapRequest,session=state.session;const host=()=>$('#map-container');
@@ -299,10 +299,11 @@ async function loadMap(){
   const folder=sets.pop();const dataFile=state.dataFiles?.find(f=>f.path===`dati/${folder}/dati.json`),topoFile=state.dataFiles?.find(f=>f.path===`dati/${folder}/comuni.topo.json`);
   if(!dataFile||!topoFile){host().innerHTML='<div class="empty">Nella wiki mancano i dati della mappa: servono dati/&lt;cartella&gt;/dati.json e comuni.topo.json.</div>';return;}
   try{
-    const [topo,data]=await Promise.all([readJSONBlob(topoFile),readJSONBlob(dataFile),loadMapLibraries()]).then(([t,d])=>[t,d]);
+    const partnerFile=state.dataFiles?.filter(f=>/^dati\/partner[^/]*\/partner\.json$/.test(f.path)).sort((a,b)=>a.path.localeCompare(b.path)).pop();
+    const [topo,data,partners]=await Promise.all([readJSONBlob(topoFile),readJSONBlob(dataFile),partnerFile?readJSONBlob(partnerFile).catch(()=>null):null,loadMapLibraries()]);
     if(state.view!=='map'||request!==mapRequest||session!==state.session||!host())return;
     const method=state.files.find(f=>/^docs\/mappa-indice-comuni[^/]*\.md$/.test(f.path));
-    mountMap(host(),topo,data,{onMethod:method?()=>{state.wikiPath=method.path;navigate('wiki');}:null});
+    mountMap(host(),topo,data,{partners,onMethod:method?()=>{state.wikiPath=method.path;navigate('wiki');}:null});
   }catch(err){if(host())host().innerHTML=`<div class="empty">Mappa non disponibile: ${e(errorText(err))} Premi aggiorna per riprovare.</div>`;}
 }
 function renderGraph(){return '<div id="graph-container"><div class="loading">Collego le pagine della wiki…</div></div>';}
