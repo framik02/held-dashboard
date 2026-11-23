@@ -12,6 +12,7 @@ const assets=new Map([['/','index.html'],['/index.html','index.html'],['/app.js'
 const mime={'.json':'application/json; charset=utf-8','.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.ttf':'font/ttf'};
 const gh=process.platform==='win32'?'gh.exe':'gh';
 function respond(res,status,data,type='application/json') {res.writeHead(status,{'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Cross-Origin-Resource-Policy':'same-origin','X-Frame-Options':'DENY'});res.end(type==='application/json'?JSON.stringify(data):data);}
+import {isAttachmentPath,attachmentBodyLimit,isAttachmentEndpoint} from './auth/worker.mjs';
 export function allowedEndpoint(endpoint,method,repository){
   if(method==='GET'&&(endpoint==='/user'||endpoint===`/repos/${repository}`||endpoint===`/repos/${repository}/git/trees/main?recursive=1`))return true;
   const blobs=`/repos/${repository}/git/blobs/`;
@@ -19,11 +20,12 @@ export function allowedEndpoint(endpoint,method,repository){
   const prefix=`/repos/${repository}/contents/`;
   if(!endpoint.startsWith(prefix)||!['GET','PUT','DELETE'].includes(method))return false;
   let p;try{p=decodeURIComponent(endpoint.slice(prefix.length).split('?')[0]);}catch{return false;}
+  if(isAttachmentPath(p))return ['PUT','DELETE'].includes(method)&&!endpoint.includes('?');
   const ok=p.endsWith('.md')&&!p.split('/').some(x=>!x||x==='.'||x==='..'||x.startsWith('.'))&&!p.includes('\\')&&!p.includes('\0');
   if(method==='DELETE')return ok&&/^attivita\/[^/]+\.md$/.test(p)&&!/\/README\.md$/i.test(p);
   return ok;
 }
-async function getBody(req){let body='';for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>1024*1024)throw new Error('Richiesta troppo grande.');}return body;}
+async function getBody(req,max=1024*1024){let body='';for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>max)throw new Error('Richiesta troppo grande.');}return body;}
 function callGitHub(endpoint,method,body){return new Promise(resolve=>{
   const args=['api',endpoint,'--method',method,'-H','Accept: application/vnd.github+json','-H','X-GitHub-Api-Version: 2022-11-28'];
   if(body)args.push('--input','-');
@@ -44,7 +46,7 @@ export function createServer(){return http.createServer(async(req,res)=>{
       if(req.headers['x-held-local']!==nonce)return respond(res,403,{message:'Sessione locale non valida. Ricarica la pagina.'});
       const endpoint=req.url.slice('/api/github'.length);
       if(!allowedEndpoint(endpoint,req.method,repo))return respond(res,403,{message:'Questa operazione non è disponibile nella dashboard.'});
-      const body=['PUT','DELETE'].includes(req.method)?await getBody(req):'';
+      const body=['PUT','DELETE'].includes(req.method)?await getBody(req,isAttachmentEndpoint(endpoint,repo)?attachmentBodyLimit():1024*1024):'';
       if(req.method==='PUT'){const parsed=JSON.parse(body||'{}');if(parsed.branch!=='main'||typeof parsed.content!=='string'||typeof parsed.message!=='string')return respond(res,400,{message:'Dati non validi.'});}
       if(req.method==='DELETE'){const parsed=JSON.parse(body||'{}');if(parsed.branch!=='main'||typeof parsed.sha!=='string'||typeof parsed.message!=='string'||parsed.content!==undefined)return respond(res,400,{message:'Dati non validi.'});}
       const result=await callGitHub(endpoint,req.method,body);return respond(res,result.status,result.data);

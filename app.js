@@ -1,6 +1,6 @@
 import {buildGraph,mountGraph} from './graph.js';
 import {loadMapLibraries,mountMap} from './mappa.js';
-import {CATEGORIES,categoryLabel,STATUSES,PRIORITIES,PHASES,escapeHTML as e,parseMarkdown,serializeMarkdown,toTask,checklist,toggleCheck,addComment,encode64,decode64,markdownHTML,fileURL} from './core.js';
+import {CATEGORIES,categoryLabel,STATUSES,PRIORITIES,PHASES,escapeHTML as e,parseMarkdown,serializeMarkdown,toTask,checklist,toggleCheck,addComment,encode64,decode64,markdownHTML,fileURL,ATTACH_PATH,cleanChat,chatBlock,parseChat} from './core.js';
 const $=s=>document.querySelector(s);
 const state={repo:'framik02/held-wiki',token:'',oauth:false,csrf:'',local:false,nonce:'',user:null,tasks:[],files:[],cache:new Map(),view:'overview',groupBy:'category',filter:{search:'',assignee:'',phase:'',priority:'',category:''},loading:false,saving:false,editor:null,wikiPath:'stato.md',meetingPath:'',docPath:'',hideDone:(()=>{try{return localStorage.getItem('held.hideDone')!=='0';}catch{return true;}})(),wikiQuery:'',lastHead:'',poll:null,session:0};
 let toastTimer,disposeGraph=null;
@@ -95,7 +95,8 @@ async function refresh(silent=false){
     if(session!==state.session)return;
     if(tree.truncated)throw new Error('Indice GitHub incompleto: apri il repository per consultare tutti i file.');
     if(tree.sha!==state.lastHead||!silent){
-      state.files=tree.tree.filter(f=>f.type==='blob'&&f.path.endsWith('.md'));state.dataFiles=tree.tree.filter(f=>f.type==='blob'&&/^dati\/[^/]+\/[^/]+\.json$/.test(f.path));
+      state.files=tree.tree.filter(f=>f.type==='blob'&&f.path.endsWith('.md'));state.dataFiles=tree.tree.filter(f=>f.type==='blob'&&/^dati\/[^/]+\/[^/]+\.json$/.test(f.path));state.attachments=tree.tree.filter(f=>f.type==='blob'&&ATTACH_PATH.test(f.path));
+      await loadPeople();
       if(state.files.some(f=>f.path==='attivita/README.md')){
         const config=parseMarkdown((await readFile('attivita/README.md')).raw).meta.phases;
         if(config&&typeof config==='object')for(const [key,p] of Object.entries(config)){
@@ -109,7 +110,9 @@ async function refresh(silent=false){
         results.forEach(r=>r.status==='fulfilled'?tasks.push(r.value):errors.push(r.reason.message));
       }
       if(session!==state.session)return;
-      state.tasks=tasks;state.lastHead=tree.sha;state.errors=errors;render();
+      state.tasks=tasks;state.lastHead=tree.sha;state.errors=errors;updateChatDot();
+      // In chat non si ridisegna la pagina: si perderebbe il messaggio che si sta scrivendo.
+      if(state.view==='chat'&&silent){$('#task-count').textContent=state.tasks.filter(t=>t.status!=='done').length;loadChat(true);}else render();
     }
     $('#sync-status').textContent=`Aggiornato ${new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}`;
   }catch(err){$('#sync-status').textContent='Sincronizzazione da riprovare';if(!silent)toast(errorText(err));}
@@ -168,7 +171,7 @@ function docFiles(){return state.files.filter(f=>/^docs\/[^/]+\.md$/.test(f.path
 function docLabel(path){const n=path.split('/').pop().replace('.md','');return n==='index'?'Indice del dossier':(n.charAt(0).toUpperCase()+n.slice(1)).replace(/-\d{4}-\d{2}$/,'').replaceAll('-',' ');}
 function renderDocs(){
   const files=docFiles();if(!state.docPath||!files.some(f=>f.path===state.docPath))state.docPath=files.find(f=>f.path!=='docs/index.md')?.path||files[0]?.path||'';
-  return `<div class="wiki-layout"><aside class="wiki-list">${files.length?files.map(f=>`<button data-docpage="${e(f.path)}" class="${f.path===state.docPath?'active':''}">${e(docLabel(f.path))}<small>${e(f.path)}</small></button>`).join(''):'<div class="empty">Nessun documento nella cartella docs/.</div>'}</aside><article id="docs-article" class="wiki-article"><div class="loading">Apertura documento…</div></article></div>`;
+  return renderAttachments()+`<div class="section-title"><h2>Ricerche e dossier</h2></div><div class="wiki-layout"><aside class="wiki-list">${files.length?files.map(f=>`<button data-docpage="${e(f.path)}" class="${f.path===state.docPath?'active':''}">${e(docLabel(f.path))}<small>${e(f.path)}</small></button>`).join(''):'<div class="empty">Nessun documento nella cartella docs/.</div>'}</aside><article id="docs-article" class="wiki-article"><div class="loading">Apertura documento…</div></article></div>`;
 }
 let docsRequest=0;
 async function loadDocs(){
@@ -193,12 +196,14 @@ let wikiRequest=0;
 async function loadWiki(){const request=++wikiRequest;try{const file=await readFile(state.wikiPath);if(request!==wikiRequest||state.view!=='wiki')return;const p=parseMarkdown(file.raw);$('#wiki-article').innerHTML=`<div class="article-toolbar"><small>${e(file.path)}</small><button class="secondary" id="edit-doc">Modifica pagina</button></div><div class="markdown">${markdownHTML(p.body,file.path,state.repo)}</div>`;$('#edit-doc').onclick=()=>openDoc(file);}catch(err){if($('#wiki-article'))$('#wiki-article').innerHTML=`<div class="empty">${e(errorText(err))}</div>`;}}
 function render(){
   if(!state.user)return;
-  disposeGraph?.();disposeGraph=null;
-  const titles={map:['I TERRITORI','Dove portare Held.','Indice esplorativo e sostegno ai genitori per i 7.896 comuni italiani, con le medie di regioni e aree.'],graph:['LA MAPPA DEL PROGETTO','Le idee, collegate.','Esplora pagine, attività e relazioni nella wiki condivisa.'],overview:['IL NOSTRO PROGETTO','Facciamo spazio alle idee.','La direzione è comune. Il prossimo passo è concreto.'],board:['DAL PIANO ALL’AZIONE','Il lavoro, un passo alla volta.','Priorità chiare, responsabilità condivise e nessun pezzo perso.'],phases:['LA STRADA DAVANTI','Una direzione, cinque fasi.','Dall’ascolto al primo pilota. Con il tempo necessario per farlo bene.'],docs:['RICERCHE E DOSSIER','I nostri documenti.','Studi, dati, casi simili e analisi raccolti per Held.'],meetings:['CI SENTIAMO OGNI SETTIMANA','Le nostre chiamate.','Il calendario con il link per entrare e il riassunto di ogni chiamata.'],wiki:['LA NOSTRA CONOSCENZA','Quello che sappiamo, insieme.','Le stesse pagine che leggete e aggiornate con i vostri assistenti AI.']};
+  disposeGraph?.();disposeGraph=null;clearInterval(state.chatPoll);state.chatPoll=null;
+  const titles={chat:['PARLIAMONE QUI','La chat del team.','Messaggi e file condivisi. Tutto resta nella wiki, nella cartella chat/.'],map:['I TERRITORI','Dove portare Held.','Indice esplorativo e sostegno ai genitori per i 7.896 comuni italiani, con le medie di regioni e aree.'],graph:['LA MAPPA DEL PROGETTO','Le idee, collegate.','Esplora pagine, attività e relazioni nella wiki condivisa.'],overview:['IL NOSTRO PROGETTO','Facciamo spazio alle idee.','La direzione è comune. Il prossimo passo è concreto.'],board:['DAL PIANO ALL’AZIONE','Il lavoro, un passo alla volta.','Priorità chiare, responsabilità condivise e nessun pezzo perso.'],phases:['LA STRADA DAVANTI','Una direzione, cinque fasi.','Dall’ascolto al primo pilota. Con il tempo necessario per farlo bene.'],docs:['RICERCHE E DOSSIER','I nostri documenti.','Studi, dati, casi simili e analisi raccolti per Held.'],meetings:['CI SENTIAMO OGNI SETTIMANA','Le nostre chiamate.','Il calendario con il link per entrare e il riassunto di ogni chiamata.'],wiki:['LA NOSTRA CONOSCENZA','Quello che sappiamo, insieme.','Le stesse pagine che leggete e aggiornate con i vostri assistenti AI.']};
   const [eyebrow,title,description]=titles[state.view];$('#page-eyebrow').textContent=eyebrow;$('#page-title').textContent=title;$('#page-description').textContent=description;
-  $('#breadcrumb').textContent='Held / '+({overview:'Panoramica',board:'Attività',phases:'Fasi di lavoro',meetings:'Riunioni',docs:'Documenti',wiki:'Wiki',graph:'Grafo',map:'Mappa'}[state.view]);$('#task-count').textContent=state.tasks.filter(t=>t.status!=='done').length;
+  $('#breadcrumb').textContent='Held / '+({chat:'Chat',overview:'Panoramica',board:'Attività',phases:'Fasi di lavoro',meetings:'Riunioni',docs:'Documenti',wiki:'Wiki',graph:'Grafo',map:'Mappa'}[state.view]);$('#task-count').textContent=state.tasks.filter(t=>t.status!=='done').length;
   document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===state.view));
-  $('#content').innerHTML=(state.errors?.length?`<div class="warning-banner">${state.errors.map(e).join('<br>')}<br>Correggi i metadati nella wiki. Le altre attività sono disponibili.</div>`:'')+({overview:renderOverview,board:renderBoard,phases:renderPhases,wiki:renderWiki,graph:renderGraph,map:renderMap,meetings:renderMeetings,docs:renderDocs}[state.view])();
+  $('#content').innerHTML=(state.errors?.length?`<div class="warning-banner">${state.errors.map(e).join('<br>')}<br>Correggi i metadati nella wiki. Le altre attività sono disponibili.</div>`:'')+({overview:renderOverview,board:renderBoard,phases:renderPhases,wiki:renderWiki,graph:renderGraph,map:renderMap,meetings:renderMeetings,docs:renderDocs,chat:renderChat}[state.view])();
+  if(state.view==='chat'){loadChat();bindChat();state.chatPoll=setInterval(()=>{if(!document.hidden)loadChat(true);},8000);}
+  if(state.view==='docs')bindAttachments();
   if(state.view==='meetings')loadMeetings();
   if(state.view==='docs')loadDocs();
   if(state.view==='wiki')loadWiki();
@@ -258,7 +263,7 @@ function closeEditor(){if(state.saving)return;if(editorSnapshot()!==state.editor
 $('#login-form').onsubmit=event=>{event.preventDefault();connect(false);};$('#local-login').onclick=()=>connect(true);
 $('#refresh').onclick=()=>refresh();$('#new-task').onclick=newTask;$('#delete-task').onclick=deleteTask;$('#close-editor').onclick=closeEditor;$('#editor-form').onsubmit=saveEditor;
 $('#editor').addEventListener('cancel',event=>{event.preventDefault();closeEditor();});
-$('#logout').onclick=async()=>{if(state.oauth){try{const response=await fetch('/auth/logout',{method:'POST',headers:{'X-Held-CSRF':state.csrf}});if(!response.ok&&response.status!==401)throw new Error();}catch{toast('Uscita non confermata: controlla la connessione e riprova.');return;}}disposeGraph?.();disposeGraph=null;setMenu(false);state.oauth=false;state.csrf='';clearInterval(state.poll);state.session++;state.token='';state.user=null;state.cache.clear();state.tasks=[];state.files=[];state.lastHead='';$('#content').innerHTML='';$('#app').hidden=true;$('#login').hidden=false;};
+$('#logout').onclick=async()=>{clearInterval(state.chatPoll);state.chatPoll=null;if(state.oauth){try{const response=await fetch('/auth/logout',{method:'POST',headers:{'X-Held-CSRF':state.csrf}});if(!response.ok&&response.status!==401)throw new Error();}catch{toast('Uscita non confermata: controlla la connessione e riprova.');return;}}disposeGraph?.();disposeGraph=null;setMenu(false);state.oauth=false;state.csrf='';clearInterval(state.poll);state.session++;state.token='';state.user=null;state.cache.clear();state.tasks=[];state.files=[];state.lastHead='';$('#content').innerHTML='';$('#app').hidden=true;$('#login').hidden=false;};
 const mobileLogout=document.createElement('button');mobileLogout.className='icon-button mobile-logout';mobileLogout.textContent='↪';mobileLogout.setAttribute('aria-label','Esci dall’account');mobileLogout.onclick=()=>$('#logout').click();$('.topbar-actions').append(mobileLogout);
 $('#download-draft').onclick=()=>{const blob=new Blob([buildDraft()],{type:'text/markdown;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=state.editor.path.split('/').pop();a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 document.addEventListener('click',event=>{
@@ -273,6 +278,8 @@ document.addEventListener('click',event=>{
   if(target.dataset.doc){state.wikiPath=target.dataset.doc;render();}
   if(target.dataset.docpage){state.docPath=target.dataset.docpage;render();}
   if(target.dataset.meeting){state.meetingPath=target.dataset.meeting;render();}
+  if(target.dataset.download)downloadAttachment(target.dataset.download);
+  if(target.dataset.removeAttachment)removeAttachment(target.dataset.removeAttachment);
 });
 document.addEventListener('change',event=>{if(event.target.dataset.statusTask)updateStatus(event.target.dataset.statusTask,event.target.value);if(event.target.dataset.check){const input=$('#editor-form [name=body]');input.value=toggleCheck(input.value,Number(event.target.dataset.check),event.target.checked);}});
 window.addEventListener('beforeunload',event=>{if(state.editor&&editorSnapshot()!==state.editor.initial){event.preventDefault();event.returnValue='';}});
@@ -329,3 +336,126 @@ async function initGitHubLogin(){
   }catch{status.textContent='Accesso GitHub temporaneamente non disponibile.';}
 }
 initGitHubLogin();
+
+// File condivisi e chat del team (richiesta del 23/11/2026).
+// I file stanno in allegati/ della wiki, i messaggi in chat/AAAA-MM.md, un blocco per messaggio.
+const ATTACH_EXT=['pdf','doc','docx','xls','xlsx','ppt','pptx','odt','ods','odp','csv','txt','png','jpg','jpeg','webp','gif'];
+const ATTACH_MAX=10*1024*1024;
+const ATTACH_MIME={pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',gif:'image/gif',txt:'text/plain',csv:'text/csv'};
+let uploading=false,sendingChat=false;
+async function loadPeople(){const f=state.files.find(x=>x.path==='chat/README.md');if(!f){state.people={};return;}
+  try{const p=parseMarkdown((await readFile(f.path)).raw).meta.people;state.people=p&&typeof p==='object'&&!Array.isArray(p)?p:{};}catch{state.people=state.people||{};}}
+function personName(login){if(state.people?.[login])return state.people[login];if(login===state.user?.login&&state.user?.name)return state.user.name;return login||'?';}
+function fileSize(n){return n>=1048576?(n/1048576).toLocaleString('it-IT',{maximumFractionDigits:1})+' MB':Math.max(1,Math.round(n/1024))+' kB';}
+function fileIcon(path){return `<span class="file-ext">${e(path.split('.').pop().toUpperCase().slice(0,4))}</span>`;}
+function attachmentLabel(path){const n=path.split('/').pop();const m=/^(\d{4}-\d{2}-\d{2})-(.+)\.([a-z0-9]+)$/.exec(n);return m?{date:m[1],name:m[2].replaceAll('-',' ')+'.'+m[3]}:{date:'',name:n};}
+function slugFile(name){const dot=name.lastIndexOf('.');const ext=dot>0?name.slice(dot+1).toLowerCase():'';const base=(dot>0?name.slice(0,dot):name).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80)||'file';return {base,ext};}
+function fileToBase64(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result).split(',')[1]||'');r.onerror=()=>reject(new Error('File non leggibile.'));r.readAsDataURL(file);});}
+async function uploadAttachment(file){
+  const {base,ext}=slugFile(file.name);
+  if(!ATTACH_EXT.includes(ext))throw new Error(`il formato .${ext||'?'} non è ammesso. Formati possibili: ${ATTACH_EXT.join(', ')}.`);
+  if(!file.size)throw new Error('il file è vuoto.');
+  if(file.size>ATTACH_MAX)throw new Error('il file supera 10 MB. Caricalo su Drive e incolla il link in chat.');
+  const content=await fileToBase64(file);
+  let path=`allegati/${today()}-${base}.${ext}`;for(let n=2;(state.attachments||[]).some(f=>f.path===path);n++)path=`allegati/${today()}-${base}-${n}.${ext}`;
+  const result=await api(contentPath(path),'PUT',{message:`Carica ${path.split('/').pop()} (${personName(state.user.login)})`,content,branch:'main'});
+  state.attachments=[...(state.attachments||[]),{path,sha:result.content.sha,size:file.size,type:'blob'}];
+  return path;
+}
+async function uploadMany(list){
+  const files=[...list];if(!files.length||uploading)return;uploading=true;let ok=0;const problems=[];
+  try{for(const f of files){toast(`Carico ${f.name}…`);try{await uploadAttachment(f);ok++;}catch(err){problems.push(`${f.name}: ${err.status?errorText(err):err.message}`);if(err.status)break;}}}
+  finally{uploading=false;}
+  if(ok&&state.view==='docs')render();
+  toast([ok?(ok===1?'1 file caricato nella wiki.':`${ok} file caricati nella wiki.`):'',...problems].filter(Boolean).join(' '));
+}
+async function downloadAttachment(path){
+  const f=(state.attachments||[]).find(x=>x.path===path);if(!f){toast('File non trovato: forse è stato cancellato. Premi aggiorna.');return;}
+  try{
+    const blob=await api(`/repos/${state.repo}/git/blobs/${f.sha}`);const bin=atob(String(blob.content||'').replace(/\s/g,''));const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    const url=URL.createObjectURL(new Blob([bytes],{type:ATTACH_MIME[path.split('.').pop()]||'application/octet-stream'}));
+    const a=document.createElement('a');a.href=url;a.download=path.split('/').pop();document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);
+  }catch(err){toast(errorText(err));}
+}
+async function removeAttachment(path){
+  const f=(state.attachments||[]).find(x=>x.path===path);if(!f)return;
+  if(!confirm(`Cancellare ${attachmentLabel(path).name} dalla wiki? I messaggi in chat che lo citano non potranno più scaricarlo.`))return;
+  try{await api(contentPath(path),'DELETE',{message:`Cancella ${path.split('/').pop()} (${personName(state.user.login)})`,sha:f.sha,branch:'main'});state.attachments=state.attachments.filter(x=>x.path!==path);render();toast('File cancellato.');}
+  catch(err){toast(errorText(err));}
+}
+function renderAttachments(){
+  const files=[...(state.attachments||[])].sort((a,b)=>b.path.localeCompare(a.path));
+  return `<section class="panel attach-panel" id="attach-drop"><div class="panel-head"><div><h2>File condivisi</h2><p class="help">PDF, Word, Excel, PowerPoint, immagini e testo, fino a 10 MB. Si salvano nella cartella allegati/ della wiki. Puoi anche trascinarli qui.</p></div><button class="primary attach-button" id="attach-pick" type="button">Carica file</button><input type="file" id="attach-input" multiple hidden accept="${ATTACH_EXT.map(x=>'.'+x).join(',')}"></div><div class="attach-list">${files.length?files.map(f=>{const l=attachmentLabel(f.path);return `<div class="attach-row">${fileIcon(f.path)}<div class="attach-name"><strong>${e(l.name)}</strong><small>${l.date?e(longDate(l.date)):''}${f.size?' · '+fileSize(f.size):''}</small></div><button class="secondary" data-download="${e(f.path)}">Scarica</button><button class="text-button danger-text" data-remove-attachment="${e(f.path)}" aria-label="Cancella ${e(l.name)}">Cancella</button></div>`;}).join(''):'<div class="empty">Nessun file ancora. Il primo che carichi comparirà qui.</div>'}</div></section>`;
+}
+function bindAttachments(){
+  const input=$('#attach-input'),zone=$('#attach-drop');if(!input)return;
+  $('#attach-pick').onclick=()=>input.click();input.onchange=()=>{uploadMany(input.files);input.value='';};
+  zone.addEventListener('dragover',ev=>{ev.preventDefault();zone.classList.add('dragging');});
+  zone.addEventListener('dragleave',()=>zone.classList.remove('dragging'));
+  zone.addEventListener('drop',ev=>{ev.preventDefault();zone.classList.remove('dragging');uploadMany(ev.dataTransfer.files);});
+}
+function chatFiles(){return state.files.filter(f=>/^chat\/\d{4}-\d{2}\.md$/.test(f.path)).sort((a,b)=>a.path.localeCompare(b.path));}
+function chatText(text){
+  const re=/\[([^\]\n]{1,200})\]\((?:\.\.\/)?(allegati\/[a-z0-9-]+\.[a-z0-9]+)\)|(https:\/\/[^\s<>"']+[^\s<>"'.,;:!?)])/g;let html='',last=0,m;
+  while((m=re.exec(text))){html+=e(text.slice(last,m.index));
+    if(m[2])html+=`<button class="chat-file" data-download="${e(m[2])}">${fileIcon(m[2])}<span>${e(m[1])}</span></button>`;
+    else{const u=safeLink(m[3]);html+=u?`<a href="${e(u)}" target="_blank" rel="noopener noreferrer">${e(m[3])}</a>`:e(m[3]);}
+    last=re.lastIndex;}
+  return (html+e(text.slice(last))).replace(/\n/g,'<br>');
+}
+function renderChat(){
+  return `<section class="chat"><div id="chat-log" class="chat-log" aria-live="polite"><div class="loading">Leggo i messaggi…</div></div><form id="chat-form" class="chat-form"><label class="sr-only" for="chat-text">Messaggio</label><textarea id="chat-text" name="text" rows="2" maxlength="4000" placeholder="Scrivi al team…">${e(state.chatDraft||'')}</textarea><div class="chat-actions"><button type="button" class="secondary" id="chat-attach">Allega file</button><input type="file" id="chat-file" hidden accept="${ATTACH_EXT.map(x=>'.'+x).join(',')}"><button class="primary" type="submit" id="chat-send">Invia</button></div></form><p class="help chat-help">Invio per mandare, Maiuscolo+Invio per andare a capo. I messaggi si salvano nella wiki, in chat/, e li leggono anche gli assistenti AI. Non scrivere password o dati personali di altre persone.</p></section>`;
+}
+function chatSeenKey(){const last=chatFiles().at(-1);return last?`${last.path}@${last.sha}`:'';}
+function markChatSeen(){try{localStorage.setItem('held.chatSeen',chatSeenKey());}catch{}updateChatDot();}
+function updateChatDot(){const dot=$('#chat-dot');if(!dot)return;let seen='';try{seen=localStorage.getItem('held.chatSeen')||'';}catch{}const key=chatSeenKey();dot.hidden=!key||state.view==='chat'||seen===key;}
+let chatRequest=0;
+async function loadChat(poll=false){
+  const request=++chatRequest,session=state.session;const all=chatFiles();const files=all.slice(-(state.chatMonths||2));
+  try{
+    const loaded=[];for(const [i,f] of files.entries())loaded.push(await readFile(f.path,poll&&i===files.length-1));
+    if(request!==chatRequest||state.view!=='chat'||session!==state.session)return;
+    const last=loaded.at(-1);if(last){const t=state.files.find(f=>f.path===last.path);if(t)t.sha=last.sha;}
+    const messages=loaded.flatMap(f=>parseChat(f.raw,f.path)).sort((a,b)=>a.at.localeCompare(b.at));
+    const key=messages.map(m=>m.id).join(',')+'|'+(state.chatMonths||2);const log=$('#chat-log');if(!log)return;
+    markChatSeen();if(poll&&key===state.chatKey)return;state.chatKey=key;
+    const atBottom=log.scrollHeight-log.scrollTop-log.clientHeight<120;let day='';
+    const older=all.length>files.length?'<button class="text-button chat-older" id="chat-older">Mostra i messaggi dei mesi precedenti</button>':'';
+    log.innerHTML=older+(messages.length?messages.map(m=>{const d=new Date(m.at);const dd=d.toLocaleDateString('en-CA',{timeZone:'Europe/Rome'});const sep=dd!==day?`<div class="chat-day">${e(longDate(dd))}</div>`:'';day=dd;const mine=m.by===state.user.login;
+      return `${sep}<div class="chat-msg${mine?' mine':''}"><div class="chat-meta"><strong>${e(personName(m.by))}</strong><time datetime="${e(m.at)}">${e(d.toLocaleTimeString('it-IT',{timeZone:'Europe/Rome',hour:'2-digit',minute:'2-digit'}))}</time></div><div class="chat-text">${chatText(m.text)}</div></div>`;}).join(''):'<div class="empty">Nessun messaggio ancora. Scrivi il primo.</div>');
+    $('#chat-older')?.addEventListener('click',()=>{state.chatMonths=(state.chatMonths||2)+3;state.chatKey='';loadChat();});
+    if(!poll||atBottom)log.scrollTop=log.scrollHeight;
+  }catch(err){const log=$('#chat-log');if(log&&!poll)log.innerHTML=`<div class="empty">${e(errorText(err))}</div>`;}
+}
+async function sendChat(text){
+  const clean=cleanChat(text);if(!clean)return false;
+  const now=new Date();const month=now.toLocaleDateString('en-CA',{timeZone:'Europe/Rome'}).slice(0,7);const path=`chat/${month}.md`;
+  const name=personName(state.user.login);
+  const when=now.toLocaleString('it-IT',{timeZone:'Europe/Rome',day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const block=chatBlock({id:'m-'+now.getTime().toString(36)+'-'+crypto.randomUUID().slice(0,6),at:now.toISOString(),by:state.user.login,name,when,text:clean});
+  const label=`${MONTHS[+month.slice(5)-1]} ${month.slice(0,4)}`;
+  for(let attempt=0;attempt<4;attempt++){
+    let file=null;
+    if(attempt>0||state.files.some(f=>f.path===path)){try{file=await readFile(path,true);}catch(err){if(err.status!==404)throw err;}}
+    const raw=file?file.raw.replace(/^updated: .*$/m,`updated: ${today()}`).replace(/\s*$/,'\n\n')+block:`---\ntitle: Chat del team, ${label}\ntype: overview\nupdated: ${today()}\nsources: [dashboard]\n---\n\n# Chat del team, ${label}\n\nMessaggi scritti dalla dashboard, dal più vecchio al più recente. Ogni messaggio comincia con una riga di commento con autore e ora.\n\n`+block;
+    try{const saved=await writeFile(path,raw,file?.sha,`Chat: messaggio di ${name}`);const t=state.files.find(f=>f.path===path);if(t)t.sha=saved.sha;else state.files.push({path,sha:saved.sha,type:'blob'});return true;}
+    catch(err){if(![409,422].includes(err.status)||attempt===3)throw err;}
+  }
+  return false;
+}
+async function submitChat(extra=''){
+  if(sendingChat)return;const box=$('#chat-text');const text=[box?.value||'',extra].filter(Boolean).join('\n\n');if(!cleanChat(text))return;
+  sendingChat=true;const button=$('#chat-send');if(button){button.disabled=true;button.textContent='Invio…';}
+  try{if(await sendChat(text)){state.chatDraft='';if(box)box.value='';state.chatKey='';await loadChat();box?.focus();}}
+  catch(err){toast('Messaggio non inviato. '+errorText(err));}
+  finally{sendingChat=false;if(button){button.disabled=false;button.textContent='Invia';}}
+}
+function bindChat(){
+  const box=$('#chat-text');if(!box)return;
+  box.addEventListener('input',()=>{state.chatDraft=box.value;});
+  box.addEventListener('keydown',ev=>{if(ev.key==='Enter'&&!ev.shiftKey&&!ev.isComposing&&!matchMedia('(pointer:coarse)').matches){ev.preventDefault();submitChat();}});
+  $('#chat-form').onsubmit=ev=>{ev.preventDefault();submitChat();};
+  const input=$('#chat-file');$('#chat-attach').onclick=()=>input.click();
+  input.onchange=async()=>{const f=input.files[0];input.value='';if(!f||uploading)return;uploading=true;toast(`Carico ${f.name}…`);
+    try{const path=await uploadAttachment(f);await submitChat(`[${f.name.replace(/[\[\]\n]/g,'')}](../${path})`);$('#toast').hidden=true;}catch(err){toast(`${f.name}: ${err.status?errorText(err):err.message}`);}finally{uploading=false;}};
+}

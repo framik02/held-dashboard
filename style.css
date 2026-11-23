@@ -187,3 +187,30 @@ h1{font-weight:750;letter-spacing:-1px}h2,h3{font-weight:700}
 .person-chip{background:none!important;color:var(--ink)!important;padding:0!important;font-weight:800;font-size:15px}.person-chip small{color:var(--muted)!important;opacity:1}
 .task-row small .person-chip{font-size:12px;padding:0!important}
 .owner-choice{color:var(--ink)!important;border:1px solid var(--line)!important;font-weight:800!important}.owner-choice:hover,.owner-choice[aria-pressed=true]{background:var(--light)!important;color:var(--ink)!important}
+
+/* File condivisi e chat (23/11/2026). */
+.attach-panel{transition:border-color .15s,background .15s}.attach-panel.dragging{border-color:var(--primary);background:var(--light)}
+.attach-panel .panel-head{align-items:flex-start}.attach-panel .panel-head h2{margin:0}.attach-panel .panel-head .help{margin:6px 0 0;max-width:560px}
+.attach-button{width:auto!important;margin-top:0!important;flex:none}
+.attach-list{border-top:1px solid var(--line)}
+.attach-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:14px;align-items:center;padding:12px 23px;border-bottom:1px solid var(--line)}.attach-row:last-child{border-bottom:0}
+.attach-name{min-width:0}.attach-name strong{display:block;font-size:14px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.attach-name small{color:var(--muted);font-size:12px}
+.attach-row .secondary{min-height:38px;padding:8px 14px}
+.danger-text{color:var(--red)!important;font-size:12px!important}
+.file-ext{display:inline-flex;align-items:center;justify-content:center;min-width:44px;height:30px;padding:0 6px;border-radius:7px;background:var(--light);color:var(--primary);font-size:10px;font-weight:800;letter-spacing:.04em}
+.chat{display:flex;flex-direction:column;gap:12px;max-width:860px}
+.chat-log{background:white;border:1px solid var(--line);border-radius:13px;padding:18px;height:max(300px,calc(100vh - 470px));overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.chat-day{align-self:center;font-size:11px;font-weight:700;color:var(--muted);background:var(--bg);border-radius:20px;padding:4px 12px;margin:8px 0 2px}
+.chat-msg{align-self:flex-start;max-width:78%;background:var(--bg);border:1px solid var(--line);border-radius:12px 12px 12px 4px;padding:9px 13px}
+.chat-msg.mine{align-self:flex-end;background:var(--light);border-color:var(--ice);border-radius:12px 12px 4px 12px}
+.chat-meta{display:flex;gap:10px;align-items:baseline;margin-bottom:3px}.chat-meta strong{color:var(--ink);font-weight:800;font-size:13px}.chat-meta time{color:var(--muted);font-size:11px}
+.chat-text{color:var(--ink);font-size:14px;line-height:1.5;overflow-wrap:anywhere}.chat-text a{color:var(--primary)}
+.chat-file{display:inline-flex;align-items:center;gap:8px;margin:4px 0;padding:5px 10px 5px 5px;border:1px solid var(--line);border-radius:9px;background:white;color:var(--ink);font-weight:600;font-size:13px;text-align:left}.chat-file:hover{border-color:var(--primary)}
+.chat-older{align-self:center}
+.chat-form{display:flex;flex-direction:column;gap:10px;background:white;border:1px solid var(--line);border-radius:13px;padding:12px}
+.chat-form textarea{width:100%;resize:vertical;min-height:56px;border:1px solid var(--line);border-radius:9px;padding:10px 12px;font:inherit;font-size:14px;color:var(--ink)}
+.chat-actions{display:flex;justify-content:space-between;gap:10px}.chat-actions .primary{width:auto;margin-top:0;min-width:110px;justify-content:center}
+.chat-help{margin:0}
+.chat-dot{width:8px;height:8px;border-radius:50%;background:var(--red);margin-left:auto;padding:0!important;min-width:0!important}
+@media(max-width:720px){.attach-row{grid-template-columns:auto minmax(0,1fr) auto;padding:12px 16px}.attach-row .danger-text{grid-column:2/4;justify-self:start;padding:0}.attach-panel .panel-head{flex-direction:column}.chat-msg{max-width:90%}.chat-log{height:max(280px,calc(100vh - 470px));padding:12px}}
+.chat-dot[hidden]{display:none!important}

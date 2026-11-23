@@ -72,3 +72,17 @@ export function markdownHTML(body,path,repo) {
     return line.trim()?`<p>${inline(line)}</p>`:'';
   }).join('\n')+(code?'</code></pre>':'');
 }
+
+// Allegati e chat (23/11/2026). Stesso schema dei nomi accettato dal proxy in auth/worker.mjs.
+export const ATTACH_PATH=/^allegati\/[a-z0-9][a-z0-9-]{0,120}\.(pdf|doc|docx|xls|xlsx|ppt|pptx|odt|ods|odp|csv|txt|png|jpg|jpeg|webp|gif)$/;
+export const cleanChat=text=>String(text).replace(/\r\n/g,'\n').replace(/<!--/g,'< !--').replace(/-->/g,'-- >').trim().slice(0,4000);
+export function chatBlock({id,at,by,name,when,text}){
+  const safe=v=>String(v).replace(/["<>\n]/g,'');
+  return `<!-- held-msg id="${safe(id)}" at="${safe(at)}" by="${safe(by)}" -->\n**${String(name).replace(/[*\n]/g,'')}** · ${String(when).replace(/\n/g,' ')}\n\n${cleanChat(text)}\n`;
+}
+export function parseChat(raw,path=''){
+  const marks=[...String(raw).replace(/\r\n/g,'\n').matchAll(/<!-- held-msg ([^>]*?) -->/g)];const text=String(raw).replace(/\r\n/g,'\n');
+  return marks.map((m,i)=>{const a=Object.fromEntries([...m[1].matchAll(/(\w+)="([^"]*)"/g)].map(x=>[x[1],x[2]]));
+    const body=text.slice(m.index+m[0].length,i+1<marks.length?marks[i+1].index:text.length).replace(/^\s*\n/,'').replace(/^\*\*[^\n]*\n\n?/,'').trim();
+    return {id:a.id,at:a.at,by:a.by||'',text:body,path};}).filter(m=>m.id&&m.at);
+}
